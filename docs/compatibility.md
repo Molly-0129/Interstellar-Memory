@@ -33,3 +33,7 @@
 ## 0.2.0 补充
 
 重新核对 release 仍为上述提交，public/lib.js 明确导出 yaml。实际扩展使用 SillyTavern.libs.yaml.parseDocument 校验 YAML；不再调用供应商 jsonSchema。旧版 JSON 增量校验与程序渲染模块已经移除。
+
+## 0.2.1 生成状态修复
+
+上游 Generate 会在 dryRun=true 时以及命令提前中止前发出 GENERATION_STARTED，不能将该事件直接锁存为忙碌。改为延迟读取 /script.js 导出的 isGenerating，并结合实际 UI 标志与 StreamingProcessor.isFinished/isStopped。

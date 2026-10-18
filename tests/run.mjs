@@ -311,6 +311,47 @@ test('原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项',
     }finally{globalThis.document=before;}
 });
 
+
+test('空闲时不受残留生成事件标志影响',()=>{
+    const before=globalThis.document;globalThis.document={body:{dataset:{}}};
+    try{const adapter=new TavernAdapter(()=>({streamingProcessor:null}));adapter.generating=true;assert.equal(adapter.busy(),false);}
+    finally{globalThis.document=before;}
+});
+test('提示词预演结束后可直接开始普通大总结',async()=>{
+    const before=globalThis.document;globalThis.document={body:{dataset:{}}};
+    try{
+        const adapter=new FakeAdapter(8);
+        const status=new TavernAdapter(()=>({streamingProcessor:{isFinished:true,isStopped:false}}));status.generating=true;
+        adapter.busy=()=>status.busy();
+        const engine=new MemoryEngine(adapter);await engine.run();assert.equal(adapter.calls,1);assert.equal(engine.state().revision,1);
+    }finally{globalThis.document=before;}
+});
+test('真实原生生成、UI 生成和活动流式输出仍会拦截总结',()=>{
+    const before=globalThis.document;globalThis.document={body:{dataset:{}}};
+    try{
+        const context={streamingProcessor:null};const adapter=new TavernAdapter(()=>context);
+        adapter.nativeIsGenerating=()=>true;assert.equal(adapter.busy(),true);
+        adapter.nativeIsGenerating=()=>false;globalThis.document.body.dataset.generating='true';assert.equal(adapter.busy(),true);
+        delete globalThis.document.body.dataset.generating;context.streamingProcessor={isFinished:false,isStopped:false};assert.equal(adapter.busy(),true);
+    }finally{globalThis.document=before;}
+});
+test('已完成或已停止的流式处理器不会造成永久忙碌',()=>{
+    const before=globalThis.document;globalThis.document={body:{dataset:{}}};
+    try{
+        const context={streamingProcessor:{isFinished:true,isStopped:false}};const adapter=new TavernAdapter(()=>context);
+        assert.equal(adapter.busy(),false);context.streamingProcessor={isFinished:false,isStopped:true};assert.equal(adapter.busy(),false);
+    }finally{globalThis.document=before;}
+});
+test('总结结束释放自己的 UI 锁，但不清除真实原生生成状态',()=>{
+    const before=globalThis.document;let activated=0;
+    globalThis.document={body:{dataset:{}},getElementById:()=>null};
+    try{
+        const adapter=new TavernAdapter(()=>({deactivateSendButtons(){},activateSendButtons(){activated++;},streamingProcessor:null}));
+        adapter.nativeIsGenerating=()=>false;adapter.lock()();assert.equal(activated,1);
+        adapter.nativeIsGenerating=()=>true;adapter.lock()();assert.equal(activated,1);
+    }finally{globalThis.document=before;}
+});
+
 export async function runTests() {
     const results=[];
     for(const {name,run} of tests){try{await run();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.stack});}}

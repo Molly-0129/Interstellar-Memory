@@ -8,6 +8,7 @@ const ui = new MemoryUI(engine);
 let timer;
 let pendingAuto = false;
 let initialized = false;
+let initializing = false;
 const bindings = [];
 function schedule(allowAuto = false) {
     pendingAuto ||= allowAuto;
@@ -22,19 +23,20 @@ function bind(name, action) {
     const event = c.eventTypes[name];
     if (event) { c.eventSource.on(event, action); bindings.push([event, action]); }
 }
-function initialize() {
-    if (initialized) return;
+async function initialize() {
+    if (initialized || initializing) return;
     const c = adapter.context();
     for (const key of ['generateRaw', 'getTokenCountAsync', 'saveChat', 'getRequestHeaders', 'Popup']) {
         if (!c[key]) { adapter.notify('当前酒馆缺少接口 ' + key + '，需要 SillyTavern 1.19.0 或兼容版本。', true); return; }
     }
     if (!globalThis.SillyTavern.libs?.yaml?.parseDocument) { adapter.notify('当前酒馆缺少 YAML 解析库，请更新酒馆。', true); return; }
+    initializing = true;
+    await adapter.connectNativeGenerationState();
     initialized = true;
+    initializing = false;
     ui.mount();
-    bind('GENERATION_STARTED', () => { adapter.generating = true; });
-    bind('GENERATION_ENDED', () => { adapter.generating = false; schedule(true); });
+    bind('GENERATION_ENDED', () => schedule(true));
     bind('GENERATION_STOPPED', () => {
-        adapter.generating = false;
         if (engine.running) engine.cancelled = true;
         schedule(false);
     });
@@ -48,8 +50,7 @@ function initialize() {
         bind(event, () => schedule(false));
     }
     bind('CHAT_LOADED', () => schedule(false));
-    bind('GROUP_WRAPPER_STARTED', () => { adapter.generating = true; });
-    bind('GROUP_WRAPPER_FINISHED', () => { adapter.generating = false; schedule(true); });
+    bind('GROUP_WRAPPER_FINISHED', () => schedule(true));
     // A simple settings entry opens the same native settings panel.
     const target = document.getElementById('extensions_settings2');
     if (target && !document.getElementById('interstellar-settings-entry')) {

@@ -21,9 +21,22 @@ export class TavernAdapter {
         const now = this.capture();
         if (now.key !== handle.key || now.chat !== handle.chat || now.metadata !== handle.metadata) throw new Error('聊天已切换，停止提交本次任务。');
     }
+    async connectNativeGenerationState() {
+        // isGenerating is exported by core but not included in getContext().
+        // Load it lazily so the adapter remains testable outside the browser.
+        try {
+            const core = await import('/script.js');
+            if (typeof core.isGenerating === 'function') this.nativeIsGenerating = core.isGenerating;
+        } catch { /* Older forks fall back to their actual UI/stream state. */ }
+    }
+    activeStream() {
+        const stream = this.context().streamingProcessor;
+        return !!stream && stream.isFinished !== true && stream.isStopped !== true;
+    }
+    nativeBusy() { return typeof this.nativeIsGenerating === 'function' && !!this.nativeIsGenerating(); }
     busy() {
-        const c = this.context();
-        return globalThis.document?.body?.dataset.generating === 'true' || !!c.streamingProcessor || !!this.generating;
+        // GENERATION_STARTED also fires for dry runs and aborted commands; never latch it.
+        return this.nativeBusy() || globalThis.document?.body?.dataset.generating === 'true' || this.activeStream();
     }
     async read(handle, name = handle.chatId) {
         const group = !!handle.groupId;
@@ -96,7 +109,7 @@ export class TavernAdapter {
         if (input) input.disabled = true;
         return () => {
             if (input?.isConnected) input.disabled = previous;
-            if (!this.generating) this.context().activateSendButtons?.();
+            if (!this.nativeBusy() && !this.activeStream()) this.context().activateSendButtons?.();
         };
     }
     async refresh() {

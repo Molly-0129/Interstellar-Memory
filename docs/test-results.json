@@ -1,11 +1,11 @@
 {
   "date": "2026-10-18",
-  "version": "0.2.0",
-  "environment": "Node.js module execution with simulated SillyTavern context, YAML parser, server responses and UI DOM fixture",
+  "version": "0.2.1",
+  "environment": "Node.js simulated core/UI generation states, YAML, server responses and DOM fixture",
   "liveSillyTavern": false,
   "liveModel": false,
-  "total": 43,
-  "passed": 43,
+  "total": 48,
+  "passed": 48,
   "results": [
     {
       "name": "两套默认提示词与用户文本文件逐字一致",
@@ -177,6 +177,26 @@
     },
     {
       "name": "原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项",
+      "pass": true
+    },
+    {
+      "name": "空闲时不受残留生成事件标志影响",
+      "pass": true
+    },
+    {
+      "name": "提示词预演结束后可直接开始普通大总结",
+      "pass": true
+    },
+    {
+      "name": "真实原生生成、UI 生成和活动流式输出仍会拦截总结",
+      "pass": true
+    },
+    {
+      "name": "已完成或已停止的流式处理器不会造成永久忙碌",
+      "pass": true
+    },
+    {
+      "name": "总结结束释放自己的 UI 锁，但不清除真实原生生成状态",
       "pass": true
     }
   ]
