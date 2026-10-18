@@ -1,0 +1,15 @@
+#interstellar-memory-button { min-width: 30px; margin: 0 3px; font-size: 1.15em; }
+.im-panel { text-align: left; color: var(--SmartThemeBodyColor); }
+.im-panel h3 { margin: 0 0 12px; }
+.im-panel details { margin: 10px 0; padding: 8px; border: 1px solid var(--SmartThemeBorderColor); border-radius: 8px; }
+.im-panel summary { cursor: pointer; font-weight: 600; }
+.im-panel .im-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.im-panel input[type=checkbox] { align-self: start; width: auto; }
+.im-panel textarea { width: 100%; resize: vertical; min-height: 100px; }
+.im-panel .im-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.im-panel .menu_button { width: auto; cursor: pointer; }
+.im-panel button:disabled { opacity: .5; cursor: default; }
+.im-status { white-space: pre-line; line-height: 1.7; }
+.im-warning { color: var(--SmartThemeQuoteColor); white-space: pre-line; }
+.im-note { opacity: .8; font-size: .9em; line-height: 1.6; }
+@media (max-width: 600px) { .im-panel .im-actions { flex-direction: column; } .im-panel .im-actions button { width: 100%; } }

@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-18",
+  "environment": "Node.js module execution with simulated SillyTavern context and server responses; UI DOM fixture",
+  "liveSillyTavern": false,
+  "liveModel": false,
+  "total": 39,
+  "passed": 39,
+  "results": [
+    {
+      "name": "普通增量保留未提及的旧历史与卷宗",
+      "pass": true
+    },
+    {
+      "name": "重要细节更新效力而保留锁定原文",
+      "pass": true
+    },
+    {
+      "name": "未知修订引用或版本不匹配拒绝合并",
+      "pass": true
+    },
+    {
+      "name": "空状态列表保留原实体，状态转移更新同一物品",
+      "pass": true
+    },
+    {
+      "name": "自动触发默认关闭，且必须同时达到两个阈值",
+      "pass": true
+    },
+    {
+      "name": "立即隐藏保留最近四层，旧总结可被接替，当前总结受保护",
+      "pass": true
+    },
+    {
+      "name": "延迟计数排除总结、隐藏与同楼备选回复",
+      "pass": true
+    },
+    {
+      "name": "非法 JSON、额外字段和错误类型不能触发提交",
+      "pass": true
+    },
+    {
+      "name": "JSON 围栏只在包裹完整对象时解开",
+      "pass": true
+    },
+    {
+      "name": "分卷来源完整且唯一并保持最新阶段",
+      "pass": true
+    },
+    {
+      "name": "总结展示转义 HTML，保留锁定文本",
+      "pass": true
+    },
+    {
+      "name": "完整普通总结→新增三层→第四层后隐藏暂留，刷新后仍有效",
+      "pass": true
+    },
+    {
+      "name": "第二次总结隐藏旧总结但完整继承历史",
+      "pass": true
+    },
+    {
+      "name": "生成失败不隐藏任何原消息，并可从持久化检查点恢复",
+      "pass": true
+    },
+    {
+      "name": "总结消息保存失败不隐藏原文",
+      "pass": true
+    },
+    {
+      "name": "隐藏提交保存失败恢复原文并保留可恢复任务",
+      "pass": true
+    },
+    {
+      "name": "生成期间切换聊天不会写入新聊天",
+      "pass": true
+    },
+    {
+      "name": "生成期间编辑来源拒绝提交",
+      "pass": true
+    },
+    {
+      "name": "已总结来源切换备选回复，暂停延迟隐藏",
+      "pass": true
+    },
+    {
+      "name": "撤销保留后续新剧情，恢复上一份有效总结",
+      "pass": true
+    },
+    {
+      "name": "分卷未解锁时不调用模型",
+      "pass": true
+    },
+    {
+      "name": "请求超容量拒绝调用，不隐藏原文",
+      "pass": true
+    },
+    {
+      "name": "服务器吞掉保存错误时，适配器读回校验能识别",
+      "pass": true
+    },
+    {
+      "name": "设置拒绝负数与非布尔开关",
+      "pass": true
+    },
+    {
+      "name": "格式正确但没有事件结果时不隐藏剧情",
+      "pass": true
+    },
+    {
+      "name": "生成期间用户手动隐藏消息时，不回滚用户的操作",
+      "pass": true
+    },
+    {
+      "name": "取消生成不提交总结",
+      "pass": true
+    },
+    {
+      "name": "检查点失败时不调用模型",
+      "pass": true
+    },
+    {
+      "name": "延迟隐藏保存失败时还原暂留范围",
+      "pass": true
+    },
+    {
+      "name": "自动开关启用且 AND 达标后只运行普通总结",
+      "pass": true
+    },
+    {
+      "name": "分卷成功完整接替历史并保护当前总结",
+      "pass": true
+    },
+    {
+      "name": "活跃伏笔未被本轮提及也继续继承",
+      "pass": true
+    },
+    {
+      "name": "适配器保存成功后必须与服务器数据逐项一致",
+      "pass": true
+    },
+    {
+      "name": "原生 UI 挂载一次且设置没有消息皮肤选项",
+      "pass": true
+    },
+    {
+      "name": "扩展入口可作为 ESM 加载",
+      "pass": true
+    },
+    {
+      "name": "已删除来源不能通过原地恢复悄悄略过",
+      "pass": true
+    },
+    {
+      "name": "未知数据版本拒绝覆盖",
+      "pass": true
+    },
+    {
+      "name": "重复点击不会并行创建总结",
+      "pass": true
+    },
+    {
+      "name": "单聊检查点保存并读回验证，使用独立 integrity",
+      "pass": true
+    }
+  ]
+}

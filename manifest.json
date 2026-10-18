@@ -1,0 +1,11 @@
+{
+  "display_name": "星间 · INTERSTELLAR 记忆",
+  "loading_order": 100,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Molly-0129",
+  "version": "0.1.0",
+  "homePage": "https://github.com/Molly-0129/Interstellar-Memory",
+  "minimum_client_version": "1.19.0",
+  "auto_update": false
+}

@@ -1,0 +1,408 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "mode": {
+      "type": "string",
+      "const": "archive"
+    },
+    "baseRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "foreshadowingUpdates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "clue": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "活跃",
+              "已解决",
+              "待核实"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "clue",
+          "status",
+          "evidence",
+          "related"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "stateUpdates": {
+      "type": "object",
+      "properties": {
+        "scene": {
+          "type": "string"
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "identity": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "condition": {
+                "type": "string"
+              },
+              "goals": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "identity",
+              "location",
+              "condition",
+              "goals"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "parties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "nature": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "changes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "parties",
+              "nature",
+              "status",
+              "changes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "truth": {
+                "type": "string"
+              },
+              "knownBy": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "key",
+              "content",
+              "truth",
+              "knownBy"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "status",
+              "owner"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "affairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "matter": {
+                "type": "string"
+              },
+              "progress": {
+                "type": "string"
+              },
+              "people": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "key",
+              "matter",
+              "progress",
+              "people"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "scene",
+        "characters",
+        "relationships",
+        "secrets",
+        "items",
+        "locations",
+        "affairs"
+      ],
+      "additionalProperties": false
+    },
+    "newDetails": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "currentEffect": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "reason",
+          "related",
+          "currentEffect"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "detailUpdates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "record": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "related": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "currentEffect": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content",
+              "reason",
+              "related",
+              "currentEffect"
+            ],
+            "additionalProperties": false
+          },
+          "evidence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "record",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "archives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "timeRange": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "sourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keyEvents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "participants": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "causality": {
+                  "type": "string"
+                },
+                "lastingImpact": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "time",
+                "location",
+                "participants",
+                "causality",
+                "lastingImpact"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "title",
+          "timeRange",
+          "overview",
+          "sourceIds",
+          "keyEvents"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "currentEventIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "capacityNote": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "mode",
+    "baseRevision",
+    "foreshadowingUpdates",
+    "stateUpdates",
+    "newDetails",
+    "detailUpdates",
+    "issues",
+    "archives",
+    "currentEventIds",
+    "capacityNote"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "name": "sillytavern-interstellar-memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "星间 · INTERSTELLAR 长期记忆扩展",
+  "scripts": {
+    "test": "node tests/run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "AGPL-3.0-or-later"
+}
