@@ -28,6 +28,7 @@ function initialize() {
     for (const key of ['generateRaw', 'getTokenCountAsync', 'saveChat', 'getRequestHeaders', 'Popup']) {
         if (!c[key]) { adapter.notify('当前酒馆缺少接口 ' + key + '，需要 SillyTavern 1.19.0 或兼容版本。', true); return; }
     }
+    if (!globalThis.SillyTavern.libs?.yaml?.parseDocument) { adapter.notify('当前酒馆缺少 YAML 解析库，请更新酒馆。', true); return; }
     initialized = true;
     ui.mount();
     bind('GENERATION_STARTED', () => { adapter.generating = true; });

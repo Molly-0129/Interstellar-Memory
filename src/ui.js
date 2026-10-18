@@ -156,7 +156,6 @@ export class MemoryUI {
         const archiveTokens = field(archive, '分卷解锁：有效记忆 Token ≥', settings.archiveTokens, 'number');
         const response = field(archive, '总结最大输出 Token', settings.responseTokens, 'number');
         const capacity = field(archive, '模型总窗口容量（0＝使用酒馆设置）', settings.contextLimit, 'number');
-        const structured = field(archive, '使用供应商强制 JSON Schema（仅在模型支持时开启）', settings.structuredOutput, 'checkbox');
         archive.append(el('p', '分卷默认 64,000 Token，需手动点击；自动触发只执行普通大总结。请求超出窗口会停止，不截断原文。', 'im-note'));
         const prompts = section(content, '独立总结提示词');
         const ordinary = field(prompts, '普通大总结提示词', settings.ordinaryPrompt || ORDINARY_PROMPT, 'textarea');
@@ -174,7 +173,7 @@ export class MemoryUI {
             await this.engine.saveSettings({
                 ...settings, autoEnabled: auto.checked, autoMessages: Number(messages.value), autoTokens: Number(tokens.value),
                 archiveTokens: Number(archiveTokens.value), responseTokens: Number(response.value), contextLimit: Number(capacity.value),
-                structuredOutput: structured.checked, ordinaryPrompt: ordinary.value, archivePrompt: archival.value,
+                ordinaryPrompt: ordinary.value, archivePrompt: archival.value,
                 lockedText: locks.value, foreshadowing: foreshadowing.value, archiveNotes: notes.value,
                 relevantSettings: lore.value,
             });

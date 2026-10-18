@@ -1,77 +1,98 @@
 {
   "date": "2026-10-18",
-  "environment": "Node.js module execution with simulated SillyTavern context and server responses; UI DOM fixture",
+  "version": "0.2.0",
+  "environment": "Node.js module execution with simulated SillyTavern context, YAML parser, server responses and UI DOM fixture",
   "liveSillyTavern": false,
   "liveModel": false,
-  "total": 39,
-  "passed": 39,
+  "total": 43,
+  "passed": 43,
   "results": [
     {
-      "name": "普通增量保留未提及的旧历史与卷宗",
+      "name": "两套默认提示词与用户文本文件逐字一致",
       "pass": true
     },
     {
-      "name": "重要细节更新效力而保留锁定原文",
+      "name": "每次只使用选中的完整提示词，无通用提示或 JSON Schema 注入",
       "pass": true
     },
     {
-      "name": "未知修订引用或版本不匹配拒绝合并",
+      "name": "标签 YAML 解析后保留完全一致的原文",
       "pass": true
     },
     {
-      "name": "空状态列表保留原实体，状态转移更新同一物品",
+      "name": "允许世界状态列表位于根或嵌套世界状态中",
       "pass": true
     },
     {
-      "name": "自动触发默认关闭，且必须同时达到两个阈值",
+      "name": "JSON、错误标签、多个标签和额外解释均拒绝",
       "pass": true
     },
     {
-      "name": "立即隐藏保留最近四层，旧总结可被接替，当前总结受保护",
+      "name": "YAML 重复键、非法格式和多文档均拒绝",
       "pass": true
     },
     {
-      "name": "延迟计数排除总结、隐藏与同楼备选回复",
+      "name": "YAML 别名扩展和危险对象键拒绝",
       "pass": true
     },
     {
-      "name": "非法 JSON、额外字段和错误类型不能触发提交",
+      "name": "缺少必要字段或模式不一致拒绝",
       "pass": true
     },
     {
-      "name": "JSON 围栏只在包裹完整对象时解开",
+      "name": "空普通事件与空分卷归档不替换原记忆",
       "pass": true
     },
     {
-      "name": "分卷来源完整且唯一并保持最新阶段",
+      "name": "人物秘密的知情范围可为模板文本或文本列表",
       "pass": true
     },
     {
-      "name": "总结展示转义 HTML，保留锁定文本",
+      "name": "自动触发默认关闭且两个阈值必须同时满足",
       "pass": true
     },
     {
-      "name": "完整普通总结→新增三层→第四层后隐藏暂留，刷新后仍有效",
+      "name": "立即隐藏保留四层并允许接替旧总结",
       "pass": true
     },
     {
-      "name": "第二次总结隐藏旧总结但完整继承历史",
+      "name": "完整模型原文存入聊天和记忆，无程序合并或渲染",
       "pass": true
     },
     {
-      "name": "生成失败不隐藏任何原消息，并可从持久化检查点恢复",
+      "name": "第二次总结直接采用模型完整结果，不补入或合并旧事件",
       "pass": true
     },
     {
-      "name": "总结消息保存失败不隐藏原文",
+      "name": "旧总结作为材料原样发送；锁定内容和伏笔同样作为输入",
       "pass": true
     },
     {
-      "name": "隐藏提交保存失败恢复原文并保留可恢复任务",
+      "name": "四层暂留在新增三层后保留，刷新后第四层再隐藏",
       "pass": true
     },
     {
-      "name": "生成期间切换聊天不会写入新聊天",
+      "name": "备选回复变化不增加楼层",
+      "pass": true
+    },
+    {
+      "name": "生成失败可恢复且原文不提前隐藏",
+      "pass": true
+    },
+    {
+      "name": "YAML 格式错误时不提交或隐藏原文",
+      "pass": true
+    },
+    {
+      "name": "总结保存失败不隐藏原文",
+      "pass": true
+    },
+    {
+      "name": "隐藏提交失败恢复原文并保留恢复任务",
+      "pass": true
+    },
+    {
+      "name": "切换聊天不会写入新聊天",
       "pass": true
     },
     {
@@ -79,87 +100,83 @@
       "pass": true
     },
     {
-      "name": "已总结来源切换备选回复，暂停延迟隐藏",
+      "name": "保留用户在生成期间自行隐藏的标志",
       "pass": true
     },
     {
-      "name": "撤销保留后续新剧情，恢复上一份有效总结",
+      "name": "已总结来源改变时暂停延迟隐藏",
       "pass": true
     },
     {
-      "name": "分卷未解锁时不调用模型",
+      "name": "延迟隐藏保存失败恢复暂留",
       "pass": true
     },
     {
-      "name": "请求超容量拒绝调用，不隐藏原文",
+      "name": "取消不提交模型结果",
       "pass": true
     },
     {
-      "name": "服务器吞掉保存错误时，适配器读回校验能识别",
+      "name": "检查点失败不调用模型",
       "pass": true
     },
     {
-      "name": "设置拒绝负数与非布尔开关",
+      "name": "自动触发只执行一次普通大总结",
       "pass": true
     },
     {
-      "name": "格式正确但没有事件结果时不隐藏剧情",
+      "name": "分卷未达到阈值时不调用模型",
       "pass": true
     },
     {
-      "name": "生成期间用户手动隐藏消息时，不回滚用户的操作",
+      "name": "分卷直接保存模型全文，不进行程序压缩或目标容量重试",
       "pass": true
     },
     {
-      "name": "取消生成不提交总结",
+      "name": "超出模型窗口时不调用模型或隐藏原文",
       "pass": true
     },
     {
-      "name": "检查点失败时不调用模型",
+      "name": "撤销保留后续剧情并恢复旧总结",
       "pass": true
     },
     {
-      "name": "延迟隐藏保存失败时还原暂留范围",
+      "name": "删除来源后要求检查点分支恢复",
       "pass": true
     },
     {
-      "name": "自动开关启用且 AND 达标后只运行普通总结",
+      "name": "重复点击不会创建并行总结",
       "pass": true
     },
     {
-      "name": "分卷成功完整接替历史并保护当前总结",
+      "name": "未知数据版本和错误设置拒绝覆盖",
       "pass": true
     },
     {
-      "name": "活跃伏笔未被本轮提及也继续继承",
+      "name": "服务器保存被吞掉时读回能发现",
       "pass": true
     },
     {
-      "name": "适配器保存成功后必须与服务器数据逐项一致",
+      "name": "检查点有独立 integrity 且读回成功",
       "pass": true
     },
     {
-      "name": "原生 UI 挂载一次且设置没有消息皮肤选项",
+      "name": "旧版强制 JSON 设置不影响新的 YAML 请求",
       "pass": true
     },
     {
-      "name": "扩展入口可作为 ESM 加载",
+      "name": "入口可作为 ESM 加载",
       "pass": true
     },
     {
-      "name": "已删除来源不能通过原地恢复悄悄略过",
+      "name": "自动迁移精确旧默认提示词，保留用户自定义内容",
       "pass": true
     },
     {
-      "name": "未知数据版本拒绝覆盖",
+      "name": "旧版总结原文可作为新模型输入，升级不改写旧消息",
       "pass": true
     },
     {
-      "name": "重复点击不会并行创建总结",
-      "pass": true
-    },
-    {
-      "name": "单聊检查点保存并读回验证，使用独立 integrity",
+      "name": "原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项",
       "pass": true
     }
   ]

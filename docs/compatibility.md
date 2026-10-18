@@ -29,3 +29,7 @@
 - [群聊打开与保存](https://github.com/SillyTavern/SillyTavern/blob/06bde939fb1e9c4c8d8641d810f0a916b5bce127/public/scripts/group-chats.js)
 
 直接服务器端点封装于 src/adapter.js；未来酒馆改动时优先复查该文件。
+
+## 0.2.0 补充
+
+重新核对 release 仍为上述提交，public/lib.js 明确导出 yaml。实际扩展使用 SillyTavern.libs.yaml.parseDocument 校验 YAML；不再调用供应商 jsonSchema。旧版 JSON 增量校验与程序渲染模块已经移除。

@@ -83,13 +83,10 @@ export class TavernAdapter {
         const c = this.context();
         return settings.contextLimit || (c.mainApi === 'openai' ? Number(c.chatCompletionSettings?.openai_max_context) : Number(c.maxContext));
     }
+    yaml() { return globalThis.SillyTavern?.libs?.yaml; }
     async generate(request, settings) {
         const args = { systemPrompt: request.systemPrompt, prompt: request.prompt,
             responseLength: settings.responseTokens, trimNames: false };
-        if (settings.structuredOutput) {
-            if (this.context().mainApi !== 'openai') throw new Error('强制结构化输出仅适用于 Chat Completion，请关闭该选项。');
-            args.jsonSchema = { name: 'InterstellarMemory', strict: true, value: request.schema };
-        }
         return this.context().generateRaw(args);
     }
     lock() {

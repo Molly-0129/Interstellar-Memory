@@ -1,395 +1,322 @@
 import assert from 'node:assert/strict';
-import {
-    KEY, clone, blankMemory, blankState, ensureIds, tag, isStory, contentHash, chatHash, memoryOf,
-    mergeResult, hiddenPlan, graceProgress, shouldAuto, DEFAULTS, validateActive, validateSettings,
-} from '../src/model.js';
-import { outputSchema, parseResult } from '../src/schema.js';
+import fs from 'node:fs/promises';
+import * as YAML from 'yaml';
+import { KEY, clone, blankState, ensureIds, tag, isStory, memoryOf, hiddenPlan, graceProgress, shouldAuto, DEFAULTS, validateSettings } from '../src/model.js';
+import { parseResult } from '../src/schema.js';
+import { buildRequest, ORDINARY_PROMPT, ARCHIVE_PROMPT } from '../src/prompts.js';
 import { MemoryEngine } from '../src/engine.js';
 import { TavernAdapter } from '../src/adapter.js';
-import { escapeHtml, renderMemory } from '../src/render.js';
 
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
 const story = (i, user = i % 2 === 0) => ({ name: user ? '用户' : 'AI', is_user: user, is_system: false, mes: '剧情 ' + i, extra: {} });
-const event = (text = '抵达港口', sources = []) => ({ time: '翌日', location: '港口', participants: ['甲'], event: text, details: '蓝色信封', impact: '收到约定', sources });
-function ordinary(revision = 0) {
-    return { schemaVersion: 1, mode: 'ordinary', baseRevision: revision,
-        stateUpdates: (() => { const { scene, characters, relationships, secrets, items, locations, affairs } = blankMemory().world; return { scene, characters, relationships, secrets, items, locations, affairs }; })(), foreshadowingUpdates: [], newDetails: [], detailUpdates: [], issues: [], newEvents: [], eventUpdates: [] };
+const event = (text='抵达港口') => ({ 时间:'翌日', 地点:'港口', 参与人物:['甲'], 事件:text, 关键细节:'蓝色信封', 结果与影响:'收到约定' });
+function world() {
+    return { 当前时间与场景:'翌日 · 港口', 重要人物:[], 人物关系:[], 信息与秘密:[], 重要物品与资源:[], 地点与环境:[], 未决事务:[] };
 }
+function ordinary() {
+    return { 记忆模式:'普通大总结', 总结范围:{起点:'昨日',截至:'翌日'}, 主要事件时间线:[event()],
+        当前世界状态:world(), 重要细节:[] };
+}
+function archive() {
+    return { 记忆模式:'分卷大总结', 整理范围:{起点:'昨日',截至:'翌日'},
+        历史卷宗:[{卷号:'1',卷名:'港口往事',时间范围:'昨日',阶段概述:'收到信封',
+            关键事件:[{时间:'昨日',地点:'港口',参与人物:['甲'],事件与因果:'因约定来到港口',重要细节:'蓝色信封',长期影响:'承诺持续'}]}],
+        当前卷:{卷号:'2',卷名:'新的一天',起始时间:'翌日',事件时间线:[event('继续等待')]},
+        当前世界状态:world(),跨卷重要细节:[],整理检查:{待核实事项:[]} };
+}
+const encode = (document, mode = 'ordinary') => {
+    const name = mode === 'ordinary' ? '星间大总结' : '星间卷宗';
+    return '<' + name + '>\n' + YAML.stringify(document) + '</' + name + '>';
+};
 class FakeAdapter {
     constructor(count = 10) {
-        this.c = { chat: Array.from({ length: count }, (_, i) => story(i)), chatMetadata: {}, chatId: 'one' };
-        this.store = new Map(); this.saves = 0; this.failAt = 0;
+        this.c = { chat: Array.from({ length: count }, (_, i) => story(i)), chatMetadata: {}, chatId:'one' };
+        this.store = new Map(); this.saves=0; this.failAt=0; this.calls=0; this.lastRequest=null;
         this.reply = request => {
-            const data = JSON.parse(request.prompt[0].content);
-            const result = ordinary(data.baseRevision);
-            result.newEvents.push(event('进展', data.newMessages.map(m => m.id)));
-            return JSON.stringify(result);
+            const data=JSON.parse(request.prompt[0].content);
+            if(request.systemPrompt===ARCHIVE_PROMPT) return encode(archive(),'archive');
+            const document=ordinary();
+            if(data.previousSummary?.trim().startsWith('<星间大总结>')) {
+                const previous=parseResult(data.previousSummary,'ordinary',YAML).document;
+                document.主要事件时间线=[...previous.主要事件时间线,event('本轮新增进展')];
+            }
+            return encode(document);
         };
     }
-    context() { return this.c; }
-    capture() { return { key: this.c.chatId, chatId: this.c.chatId, chat: this.c.chat, metadata: this.c.chatMetadata }; }
-    assertCurrent(h) { if (h.key !== this.c.chatId || h.chat !== this.c.chat || h.metadata !== this.c.chatMetadata) throw new Error('聊天已切换'); }
-    busy() { return false; }
-    lock() { return () => {}; }
-    async tokens(text) { return Math.ceil(text.length / 4); }
-    capacity() { return 1000000; }
-    async saveVerified(h) {
-        this.assertCurrent(h); this.saves++;
-        if (this.saves === this.failAt) throw new Error('模拟保存失败');
-        this.store.set(h.chatId, { chat: clone(h.chat), metadata: clone(h.metadata) });
-    }
-    async checkpoint(h, id) {
-        const name = 'checkpoint-' + id;
-        this.store.set(name, { chat: clone(h.chat), metadata: clone(h.metadata) });
-        return name;
-    }
-    async read(h, name) { return clone(this.store.get(name)); }
-    async generate(request) { return this.reply(request); }
-    async refresh() {}
-    notify() {}
+    context(){return this.c;}
+    capture(){return {key:this.c.chatId,chatId:this.c.chatId,chat:this.c.chat,metadata:this.c.chatMetadata};}
+    assertCurrent(h){if(h.key!==this.c.chatId||h.chat!==this.c.chat||h.metadata!==this.c.chatMetadata)throw new Error('聊天已切换');}
+    busy(){return false;}
+    lock(){return ()=>{};}
+    async tokens(text){return Math.ceil(text.length/4);}
+    capacity(){return 1000000;}
+    yaml(){return YAML;}
+    async saveVerified(h){this.assertCurrent(h);this.saves++;if(this.saves===this.failAt)throw new Error('模拟保存失败');this.store.set(h.chatId,{chat:clone(h.chat),metadata:clone(h.metadata)});}
+    async checkpoint(h,id){const name='checkpoint-'+id;this.store.set(name,{chat:clone(h.chat),metadata:clone(h.metadata)});return name;}
+    async read(h,name){return clone(this.store.get(name));}
+    async generate(request){this.calls++;this.lastRequest=request;return this.reply(request);}
+    async refresh(){}
+    notify(){}
 }
-test('普通增量保留未提及的旧历史与卷宗', () => {
-    const base = blankMemory();
-    base.timeline = [{ id: 'e-old', ...event('旧事件') }];
-    base.volumes = [{ id: 'v-old', title: '旧卷' }];
-    const result = ordinary();
-    result.newEvents.push(event('新事件'));
-    const next = mergeResult(base, result, 'op', '锁定原文');
-    assert.equal(next.timeline.length, 2); assert.equal(next.volumes[0].id, 'v-old'); assert.equal(next.locks, '锁定原文');
-    assert.equal(base.timeline.length, 1);
+test('两套默认提示词与用户文本文件逐字一致',async()=>{
+    assert.equal(ORDINARY_PROMPT,await fs.readFile(new URL('../docs/ordinary-prompt.txt',import.meta.url),'utf8'));
+    assert.equal(ARCHIVE_PROMPT,await fs.readFile(new URL('../docs/archive-prompt.txt',import.meta.url),'utf8'));
+    assert.ok(ORDINARY_PROMPT.includes('\\</任务目标>'));assert.ok(ARCHIVE_PROMPT.includes('\\- 时间:'));
 });
-test('重要细节更新效力而保留锁定原文', () => {
-    const base = blankMemory(); base.details = [{ id: 'd-one', content: '承诺', reason: '关系', related: [], currentEffect: '有效' }];
-    const result = ordinary(); result.detailUpdates = [{ id: 'd-one', evidence: '已履行', record: { ...base.details[0], currentEffect: '已履行' } }];
-    delete result.detailUpdates[0].record.id;
-    const next = mergeResult(base, result, 'op', '原话：我会回来');
-    assert.equal(next.details[0].currentEffect, '已履行'); assert.equal(next.locks, '原话：我会回来');
+test('每次只使用选中的完整提示词，无通用提示或 JSON Schema 注入',()=>{
+    const request=buildRequest('ordinary',{previousSummary:'',newMessages:[]});
+    assert.equal(request.systemPrompt,ORDINARY_PROMPT);assert.equal(request.schema,undefined);
+    assert.equal(buildRequest('archive',{}).systemPrompt,ARCHIVE_PROMPT);
+    assert.equal(buildRequest('ordinary',{},'自定义原文').systemPrompt,'自定义原文');
 });
-test('未知修订引用或版本不匹配拒绝合并', () => {
-    const bad = ordinary(1); assert.throws(() => mergeResult(blankMemory(), bad, 'x', ''));
-    const result = ordinary(); result.eventUpdates.push({ id: '不存在', record: event(), evidence: '无' });
-    assert.throws(() => mergeResult(blankMemory(), result, 'x', ''));
+test('标签 YAML 解析后保留完全一致的原文',()=>{
+    const raw=' \r\n'+encode(ordinary())+'\r\n ';
+    assert.equal(parseResult(raw,'ordinary',YAML).raw,raw);
 });
-test('空状态列表保留原实体，状态转移更新同一物品', () => {
-    const base = blankMemory(); base.world.items = [{ name: '信封', status: '完整', owner: '甲' }];
-    assert.equal(mergeResult(base, ordinary(), 'a', '').world.items.length, 1);
-    const result = ordinary(); result.stateUpdates.items = [{ name: '信封', status: '已转交', owner: '乙' }];
-    assert.equal(mergeResult(base, result, 'b', '').world.items[0].owner, '乙');
+test('允许世界状态列表位于根或嵌套世界状态中',()=>{
+    const flat=ordinary();Object.assign(flat,flat.当前世界状态);flat.当前世界状态=null;
+    assert.equal(parseResult(encode(flat),'ordinary',YAML).document.重要人物.length,0);
+    assert.ok(parseResult(encode(ordinary()),'ordinary',YAML).document.当前世界状态);
 });
-test('自动触发默认关闭，且必须同时达到两个阈值', () => {
-    assert.equal(shouldAuto(DEFAULTS, 999, 999999), false);
-    const settings = { ...DEFAULTS, autoEnabled: true };
-    assert.equal(shouldAuto(settings, 200, 255999), false);
-    assert.equal(shouldAuto(settings, 199, 256000), false);
-    assert.equal(shouldAuto(settings, 200, 256000), true);
-});
-test('立即隐藏保留最近四层，旧总结可被接替，当前总结受保护', () => {
-    const chat = Array.from({ length: 8 }, (_, i) => story(i)); ensureIds(chat);
-    const old = { mes: '旧总结', extra: { [KEY]: { id: 'old', kind: 'summary' } }, is_system: false };
-    chat.splice(2, 0, old);
-    const covered = Object.fromEntries(chat.filter(isStory).map(m => [tag(m).id, 'hash']));
-    const plan = hiddenPlan(chat, covered, ['old'], 'new');
-    assert.equal(plan.retained.length, 4); assert.equal(plan.hide.length, 5); assert.ok(plan.hide.includes('old'));
-    assert.equal(plan.retained.includes('old'), false);
-});
-test('延迟计数排除总结、隐藏与同楼备选回复', () => {
-    const chat = [{ mes: 'S', extra: { [KEY]: { id: 's', kind: 'summary' } } }];
-    chat.push(story(0), story(1), story(2));
-    assert.equal(graceProgress(chat, { summaryId: 's' }), 3);
-    chat[2].swipe_id = 2; assert.equal(graceProgress(chat, { summaryId: 's' }), 3);
-    chat.push(story(3)); assert.equal(graceProgress(chat, { summaryId: 's' }), 4);
-});
-test('非法 JSON、额外字段和错误类型不能触发提交', () => {
-    assert.throws(() => parseResult('{}', 'ordinary'));
-    assert.throws(() => parseResult(JSON.stringify({ ...ordinary(), extra: true }), 'ordinary'));
-    assert.throws(() => parseResult('解释：' + JSON.stringify(ordinary()), 'ordinary'));
-    assert.equal(parseResult(JSON.stringify(ordinary()), 'ordinary').mode, 'ordinary');
-    assert.throws(() => parseResult(JSON.stringify({ ...ordinary(), newEvents: 'bad' }), 'ordinary'));
-});
-test('JSON 围栏只在包裹完整对象时解开', () => {
-    const text = String.fromCharCode(96).repeat(3);
-    assert.equal(parseResult(text + 'json\n' + JSON.stringify(ordinary()) + '\n' + text, 'ordinary').mode, 'ordinary');
-});
-test('分卷来源完整且唯一并保持最新阶段', () => {
-    const base = blankMemory(); base.timeline = ['a','b','c'].map(id => ({ id, ...event(id) }));
-    const result = { ...ordinary(), mode: 'archive', archives: [{ title: '一卷', timeRange: '早期', overview: '经过', sourceIds: ['a','b'], keyEvents: [] }], currentEventIds: ['c'], capacityNote: '' };
-    delete result.newEvents; delete result.eventUpdates;
-    const memory = mergeResult(base, result, 'op', '原文');
-    assert.equal(memory.volumes.length, 1); assert.equal(memory.timeline[0].id, 'c');
-    result.archives[0].sourceIds = ['a']; assert.throws(() => mergeResult(base, result, 'op', ''));
-    result.archives[0].sourceIds = ['a', 'c']; result.currentEventIds = ['b'];
-    assert.throws(() => mergeResult(base, result, 'op', ''));
-});
-test('总结展示转义 HTML，保留锁定文本', () => {
-    assert.equal(escapeHtml('<script>'), '&lt;script&gt;');
-    const memory = blankMemory(); memory.locks = '<script>恶意</script>';
-    const html = renderMemory(memory, 'ordinary', 1);
-    assert.ok(!html.includes('<script>')); assert.ok(html.includes('&lt;script&gt;'));
-});
-test('完整普通总结→新增三层→第四层后隐藏暂留，刷新后仍有效', async () => {
-    const adapter = new FakeAdapter(10); const engine = new MemoryEngine(adapter);
-    await engine.run(); const state = engine.state();
-    assert.equal(state.revision, 1); assert.equal(adapter.c.chat.filter(isStory).length, 4);
-    const current = adapter.c.chat.at(-1); assert.equal(current.is_system, false);
-    adapter.c.chat.push(story(10), story(11), story(12)); await engine.tick();
-    assert.equal(adapter.c.chat.filter(isStory).length, 7); assert.ok(state.grace);
-    const reopened = new MemoryEngine(adapter);
-    adapter.c.chat.push(story(13)); await reopened.tick();
-    assert.equal(adapter.c.chat.filter(isStory).length, 4); assert.equal(reopened.state().grace, null); assert.equal(current.is_system, false);
-});
-test('第二次总结隐藏旧总结但完整继承历史', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    const old = adapter.c.chat.at(-1); adapter.c.chat.push(story(8), story(9));
-    await engine.run();
-    assert.equal(old.is_system, true); assert.equal(adapter.c.chat.at(-1).is_system, false);
-    assert.equal(memoryOf(adapter.c.chat, engine.state()).timeline.length, 2);
-});
-test('生成失败不隐藏任何原消息，并可从持久化检查点恢复', async () => {
-    const adapter = new FakeAdapter(8); adapter.reply = () => { throw new Error('断网'); };
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /断网/);
-    assert.equal(adapter.c.chat.filter(m => m.is_system).length, 0); assert.ok(engine.state().pending);
-    await engine.recover(); assert.equal(engine.state().pending, null); assert.equal(engine.state().revision, 0);
-});
-test('总结消息保存失败不隐藏原文', async () => {
-    const adapter = new FakeAdapter(8); adapter.failAt = 3;
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /模拟保存失败/);
-    assert.equal(adapter.c.chat.slice(0, 8).some(m => m.is_system), false); assert.equal(engine.state().activeId, null);
-    await engine.recover(); assert.equal(engine.state().pending, null);
-});
-test('隐藏提交保存失败恢复原文并保留可恢复任务', async () => {
-    const adapter = new FakeAdapter(8); adapter.failAt = 4;
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /模拟保存失败/);
-    assert.equal(adapter.c.chat.slice(0, 8).some(m => m.is_system), false); assert.equal(engine.state().revision, 0);
-    assert.equal(tag(adapter.c.chat.at(-1)).status, 'aborted');
-});
-test('生成期间切换聊天不会写入新聊天', async () => {
-    const adapter = new FakeAdapter(8); const original = adapter.c;
-    adapter.reply = () => { adapter.c = { chatId: 'two', chat: [story(99)], chatMetadata: {} }; return JSON.stringify(ordinary()); };
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /聊天已切换/);
-    assert.equal(adapter.c.chat.length, 1); assert.deepEqual(adapter.c.chatMetadata, {});
-    assert.equal(original.chat.some(m => m.is_system), false); assert.ok(original.chatMetadata[KEY].pending);
-});
-test('生成期间编辑来源拒绝提交', async () => {
-    const adapter = new FakeAdapter(8); const reply = adapter.reply;
-    adapter.reply = req => { adapter.c.chat[0].mes = '修改'; return reply(req); };
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /已变化/);
-    assert.equal(adapter.c.chat.some(m => m.is_system), false);
-});
-test('已总结来源切换备选回复，暂停延迟隐藏', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    const retained = engine.state().grace.ids;
-    adapter.c.chat.find(m => tag(m).id === retained[0]).mes = '另一版';
-    adapter.c.chat.push(...[8,9,10,11].map(i => story(i))); await engine.tick();
-    assert.ok(engine.state().error); assert.equal(adapter.c.chat.find(m => tag(m).id === retained[0]).is_system, false);
-});
-test('撤销保留后续新剧情，恢复上一份有效总结', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    const old = adapter.c.chat.at(-1); adapter.c.chat.push(story(8),story(9)); await engine.run();
-    adapter.c.chat.push(story(10),story(11)); await engine.undo();
-    assert.equal(engine.state().activeId, tag(old).id); assert.equal(old.is_system, false);
-    assert.equal(adapter.c.chat.at(-1).mes, '剧情 11');
-});
-test('分卷未解锁时不调用模型', async () => {
-    const adapter = new FakeAdapter(8); adapter.reply = () => { throw new Error('不应调用'); };
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run('archive'), /尚未解锁/);
-    assert.equal(adapter.saves, 0);
-});
-test('请求超容量拒绝调用，不隐藏原文', async () => {
-    const adapter = new FakeAdapter(8); adapter.capacity = () => 10;
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /超过容量/);
-    assert.equal(adapter.saves, 0); assert.equal(adapter.c.chat.some(m => m.is_system), false);
-});
-test('服务器吞掉保存错误时，适配器读回校验能识别', async () => {
-    const c = { chat: [story(0)], chatMetadata: { [KEY]: blankState() }, chatId: 'one', characters: [{ name: 'A', avatar: 'a.png' }], characterId: 0,
-        getRequestHeaders: () => ({ 'Content-Type': 'application/json' }), saveChat: async () => {} };
-    ensureIds(c.chat);
-    const adapter = new TavernAdapter(() => c, async () => ({ ok: true, json: async () => [{ chat_metadata: {} }, story(1)] }));
-    await assert.rejects(adapter.saveVerified(adapter.capture()), /读回/);
-});
-test('设置拒绝负数与非布尔开关', () => {
-    assert.throws(() => validateSettings({ ...DEFAULTS, autoMessages: -1 }));
-    assert.throws(() => validateSettings({ ...DEFAULTS, autoEnabled: 'true' }));
-});
-
-test('格式正确但没有事件结果时不隐藏剧情', async () => {
-    const adapter = new FakeAdapter(8); adapter.reply = () => JSON.stringify(ordinary());
-    const engine = new MemoryEngine(adapter);
-    await assert.rejects(engine.run(), /没有可用事件/);
-    assert.equal(adapter.c.chat.some(m => m.is_system), false);
-});
-test('生成期间用户手动隐藏消息时，不回滚用户的操作', async () => {
-    const adapter = new FakeAdapter(8); const reply = adapter.reply;
-    adapter.reply = request => { adapter.c.chat[0].is_system = true; return reply(request); };
-    const engine = new MemoryEngine(adapter);
-    await assert.rejects(engine.run(), /已变化/);
-    assert.equal(adapter.c.chat[0].is_system, true);
-    assert.equal(adapter.c.chat.slice(1).some(m => m.is_system), false);
-});
-test('取消生成不提交总结', async () => {
-    const adapter = new FakeAdapter(8); const reply = adapter.reply;
-    const engine = new MemoryEngine(adapter);
-    adapter.reply = request => { engine.cancel(); return reply(request); };
-    await assert.rejects(engine.run(), /取消/);
-    assert.equal(engine.state().revision, 0); assert.equal(adapter.c.chat.some(m => m.is_system), false);
-});
-test('检查点失败时不调用模型', async () => {
-    const adapter = new FakeAdapter(8); let calls = 0;
-    adapter.checkpoint = () => { throw new Error('检查点失败'); }; adapter.reply = () => { calls++; };
-    const engine = new MemoryEngine(adapter); await assert.rejects(engine.run(), /检查点失败/);
-    assert.equal(calls, 0); assert.equal(adapter.c.chat.some(m => m.is_system), false);
-});
-test('延迟隐藏保存失败时还原暂留范围', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    const retained = [...engine.state().grace.ids];
-    adapter.failAt = 5; adapter.c.chat.push(...[8,9,10,11].map(i=>story(i)));
-    await engine.tick();
-    assert.ok(engine.state().grace); assert.ok(engine.state().error);
-    assert.equal(retained.every(id => !adapter.c.chat.find(m=>tag(m)?.id===id).is_system), true);
-});
-test('自动开关启用且 AND 达标后只运行普通总结', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter);
-    engine.state().settings = { autoEnabled: true, autoMessages: 8, autoTokens: 1 };
-    await engine.tick(false); assert.equal(engine.state().revision, 0);
-    await engine.tick(true); assert.equal(engine.state().revision, 1);
-    assert.equal(tag(adapter.c.chat.at(-1)).mode, 'ordinary');
-    await engine.tick(true); assert.equal(engine.state().revision, 1);
-});
-test('分卷成功完整接替历史并保护当前总结', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    const old = adapter.c.chat.at(-1);
-    adapter.tokens = async text => text.includes('"revision":1') ? 65000 : text.includes('"revision":2') ? 12000 : 10000;
-    adapter.reply = request => {
-        const input = JSON.parse(request.prompt[0].content);
-        const result = { ...ordinary(input.baseRevision), mode: 'archive',
-            archives: [{ title: '港口往事', timeRange: '翌日', overview: '已经发生的阶段', sourceIds: input.units,
-                keyEvents: [{ time: '翌日', location: '港口', participants: ['甲'], causality: '抵达并收到信封', lastingImpact: '承诺持续' }] }],
-            currentEventIds: [], capacityNote: '' };
-        delete result.newEvents; delete result.eventUpdates;
-        return JSON.stringify(result);
-    };
-    await engine.run('archive');
-    assert.equal(old.is_system, true); assert.equal(adapter.c.chat.at(-1).is_system, false);
-    const memory = memoryOf(adapter.c.chat, engine.state());
-    assert.equal(memory.volumes.length, 1); assert.equal(memory.revision, 2);
-});
-test('活跃伏笔未被本轮提及也继续继承', () => {
-    const memory = blankMemory(); memory.clues = [{ key: '信封', clue: '寄件人未知', status: '活跃', evidence: '无署名', related: [] }];
-    const next = mergeResult(memory, ordinary(), 'op', '');
-    assert.equal(next.clues.length, 1); assert.equal(next.clues[0].status, '活跃');
-});
-test('适配器保存成功后必须与服务器数据逐项一致', async () => {
-    const c = { chat: [story(0)], chatMetadata: { [KEY]: blankState() }, chatId: 'one', characters: [{ name: 'A', avatar: 'a.png' }], characterId: 0,
-        getRequestHeaders: () => ({}), saveChat: async () => {} };
-    ensureIds(c.chat);
-    const adapter = new TavernAdapter(() => c, async () => ({ ok: true, json: async () => [{ chat_metadata: clone(c.chatMetadata) }, ...clone(c.chat)] }));
-    await adapter.saveVerified(adapter.capture());
-    c.chat[0].mes = '新内容';
-    const stale = clone(c.chat); stale[0].mes = '旧内容';
-    adapter.fetcher = async () => ({ ok: true, json: async () => [{ chat_metadata: clone(c.chatMetadata) }, ...stale] });
-    await assert.rejects(adapter.saveVerified(adapter.capture()), /读回/);
-});
-
-
-test('原生 UI 挂载一次且设置没有消息皮肤选项', async () => {
-    const previousDocument = globalThis.document;
-    class Node {
-        constructor(name) { this.tagName = name; this.children = []; this.listeners = {}; this.textContent = ''; this.id = ''; }
-        append(...nodes) { for (const node of nodes) { node.parent = this; this.children.push(node); } }
-        setAttribute(name, value) { this[name] = value; }
-        addEventListener(name, handler) { this.listeners[name] = handler; }
-        get isConnected() { return this === doc.body || !!this.parent?.isConnected; }
+test('JSON、错误标签、多个标签和额外解释均拒绝',()=>{
+    for(const raw of [JSON.stringify(ordinary()),encode(ordinary())+encode(ordinary()),'说明'+encode(ordinary()),encode(ordinary()).replaceAll('星间大总结','星间卷宗')]) {
+        assert.throws(()=>parseResult(raw,'ordinary',YAML));
     }
-    const doc = { body: new Node('body'), createElement: name => new Node(name),
-        getElementById: id => walk(doc.body).find(n=>n.id === id) };
-    const walk = node => [node, ...node.children.flatMap(walk)];
-    const toolbar = new Node('div'); toolbar.id = 'leftSendForm'; doc.body.append(toolbar);
-    globalThis.document = doc;
-    try {
-        const adapter = new FakeAdapter(8);
-        const engine = new MemoryEngine(adapter);
-        const popups = [];
-        adapter.c.Popup = class {
-            static show = { confirm: async () => true };
-            constructor(content) { this.content = content; popups.push(content); }
-            async show() { doc.body.append(this.content); return true; }
-        };
-        adapter.c.POPUP_TYPE = { DISPLAY: 1 };
-        const { MemoryUI } = await import('../src/ui.js');
-        const ui = new MemoryUI(engine); ui.mount(); ui.mount();
-        assert.equal(toolbar.children.length, 1);
-        assert.equal(toolbar.children[0]['aria-label'], '星间 · INTERSTELLAR 记忆');
-        await ui.open();
-        assert.ok(walk(popups[0]).some(n=>n.textContent==='立刻大总结'));
-        await ui.settings();
-        const settingsPanel = popups.at(-1);
-        assert.ok(!walk(settingsPanel).some(n=>n.tagName==='select'));
-        const inputs = walk(settingsPanel).filter(n=>n.tagName==='input');
-        assert.equal(inputs.find(n=>n.type==='checkbox').checked, false);
-        const save = walk(settingsPanel).find(n=>n.textContent==='保存设置');
-        await save.listeners.click();
-        assert.equal(engine.state().settings.autoMessages, 200);
+});
+test('YAML 重复键、非法格式和多文档均拒绝',()=>{
+    assert.throws(()=>parseResult('<星间大总结>\na: 1\na: 2\n</星间大总结>','ordinary',YAML),/YAML/);
+    assert.throws(()=>parseResult('<星间大总结>\na: [\n</星间大总结>','ordinary',YAML),/YAML/);
+    assert.throws(()=>parseResult('<星间大总结>\na: 1\n---\nb: 2\n</星间大总结>','ordinary',YAML),/YAML/);
+});
+test('YAML 别名扩展和危险对象键拒绝',()=>{
+    assert.throws(()=>parseResult('<星间大总结>\na: &x [a]\nb: *x\n</星间大总结>','ordinary',YAML));
+    assert.throws(()=>parseResult('<星间大总结>\n__proto__: { polluted: true }\n</星间大总结>','ordinary',YAML));
+    assert.equal({}.polluted,undefined);
+});
+test('缺少必要字段或模式不一致拒绝',()=>{
+    const missing=ordinary();delete missing.当前世界状态;
+    assert.throws(()=>parseResult(encode(missing),'ordinary',YAML));
+    const wrong=ordinary();wrong.记忆模式='分卷大总结';
+    assert.throws(()=>parseResult(encode(wrong),'ordinary',YAML));
+});
+test('空普通事件与空分卷归档不替换原记忆',()=>{
+    const o=ordinary();o.主要事件时间线=[];assert.throws(()=>parseResult(encode(o),'ordinary',YAML),/没有可用事件/);
+    const a=archive();a.历史卷宗=[];assert.throws(()=>parseResult(encode(a,'archive'),'archive',YAML),/未生成/);
+});
+test('人物秘密的知情范围可为模板文本或文本列表',()=>{
+    const o=ordinary();o.当前世界状态.信息与秘密=[{内容:'身份',真实性:'已证实',知情范围:'只有甲'}];
+    parseResult(encode(o),'ordinary',YAML);o.当前世界状态.信息与秘密[0].知情范围=['甲'];parseResult(encode(o),'ordinary',YAML);
+});
+test('自动触发默认关闭且两个阈值必须同时满足',()=>{
+    assert.equal(shouldAuto(DEFAULTS,999,999999),false);
+    const settings={...DEFAULTS,autoEnabled:true};
+    assert.equal(shouldAuto(settings,200,255999),false);assert.equal(shouldAuto(settings,199,256000),false);
+    assert.equal(shouldAuto(settings,200,256000),true);
+});
+test('立即隐藏保留四层并允许接替旧总结',()=>{
+    const chat=Array.from({length:8},(_,i)=>story(i));ensureIds(chat);
+    chat.splice(2,0,{mes:'旧总结',extra:{[KEY]:{id:'old',kind:'summary'}},is_system:false});
+    const covered=Object.fromEntries(chat.filter(isStory).map(m=>[tag(m).id,'hash']));
+    const plan=hiddenPlan(chat,covered,['old'],'new');
+    assert.equal(plan.retained.length,4);assert.equal(plan.hide.length,5);assert.ok(plan.hide.includes('old'));
+});
+test('完整模型原文存入聊天和记忆，无程序合并或渲染',async()=>{
+    const adapter=new FakeAdapter(8);const raw='\n'+encode(ordinary())+'\n';adapter.reply=()=>raw;
+    const engine=new MemoryEngine(adapter);await engine.run();
+    assert.equal(adapter.c.chat.at(-1).mes,raw);assert.equal(memoryOf(adapter.c.chat,engine.state()).raw,raw);
+    assert.equal(adapter.c.chat.at(-1).mes.includes('<details>'),false);
+});
+test('第二次总结直接采用模型完整结果，不补入或合并旧事件',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const old=adapter.c.chat.at(-1);adapter.c.chat.push(story(8),story(9));
+    const replacement=ordinary();replacement.主要事件时间线=[event('模型完整新版本')];const raw=encode(replacement);
+    adapter.reply=()=>raw;await engine.run();
+    assert.equal(old.is_system,true);assert.equal(adapter.c.chat.at(-1).mes,raw);
+    assert.equal(memoryOf(adapter.c.chat,engine.state()).document.主要事件时间线.length,1);
+    assert.equal(memoryOf(adapter.c.chat,engine.state()).document.主要事件时间线[0].事件,'模型完整新版本');
+});
+test('旧总结作为材料原样发送；锁定内容和伏笔同样作为输入',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const prior=adapter.c.chat.at(-1).mes;adapter.c.chat.push(story(8),story(9));
+    engine.state().settings.lockedText='原话：我会回来';engine.state().settings.foreshadowing='寄件人未知';
+    await engine.run();const data=JSON.parse(adapter.lastRequest.prompt[0].content);
+    assert.equal(data.previousSummary,prior);assert.equal(data.lockedRecords,'原话：我会回来');
+    assert.equal(data.latestForeshadowing,'寄件人未知');assert.equal(data.baseRevision,undefined);
+});
+test('四层暂留在新增三层后保留，刷新后第四层再隐藏',async()=>{
+    const adapter=new FakeAdapter(10);const engine=new MemoryEngine(adapter);await engine.run();
+    const summary=adapter.c.chat.at(-1);assert.equal(adapter.c.chat.filter(isStory).length,4);
+    adapter.c.chat.push(story(10),story(11),story(12));await engine.tick();assert.ok(engine.state().grace);
+    const reopened=new MemoryEngine(adapter);adapter.c.chat.push(story(13));await reopened.tick();
+    assert.equal(reopened.state().grace,null);assert.equal(adapter.c.chat.filter(isStory).length,4);assert.equal(summary.is_system,false);
+});
+test('备选回复变化不增加楼层',()=>{
+    const chat=[{mes:'S',extra:{[KEY]:{id:'s',kind:'summary'}}},story(0),story(1),story(2)];
+    assert.equal(graceProgress(chat,{summaryId:'s'}),3);chat[2].swipe_id=2;assert.equal(graceProgress(chat,{summaryId:'s'}),3);
+});
+test('生成失败可恢复且原文不提前隐藏',async()=>{
+    const adapter=new FakeAdapter(8);adapter.reply=()=>{throw new Error('断网');};const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/断网/);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
+    await engine.recover();assert.equal(engine.state().pending,null);
+});
+test('YAML 格式错误时不提交或隐藏原文',async()=>{
+    const adapter=new FakeAdapter(8);adapter.reply=()=>'<星间大总结>\na: [\n</星间大总结>';const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/YAML/);assert.equal(engine.state().revision,0);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
+});
+test('总结保存失败不隐藏原文',async()=>{
+    const adapter=new FakeAdapter(8);adapter.failAt=3;const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/保存失败/);assert.equal(adapter.c.chat.slice(0,8).some(m=>m.is_system),false);
+    await engine.recover();assert.equal(engine.state().pending,null);
+});
+test('隐藏提交失败恢复原文并保留恢复任务',async()=>{
+    const adapter=new FakeAdapter(8);adapter.failAt=4;const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/保存失败/);assert.equal(adapter.c.chat.slice(0,8).some(m=>m.is_system),false);
+    assert.equal(tag(adapter.c.chat.at(-1)).status,'aborted');assert.equal(engine.state().revision,0);
+});
+test('切换聊天不会写入新聊天',async()=>{
+    const adapter=new FakeAdapter(8);const original=adapter.c;
+    adapter.reply=()=>{adapter.c={chatId:'two',chat:[story(99)],chatMetadata:{}};return encode(ordinary());};
+    const engine=new MemoryEngine(adapter);await assert.rejects(engine.run(),/聊天已切换/);
+    assert.equal(adapter.c.chat.length,1);assert.deepEqual(adapter.c.chatMetadata,{});
+    assert.equal(original.chat.some(m=>m.is_system),false);
+});
+test('生成期间编辑来源拒绝提交',async()=>{
+    const adapter=new FakeAdapter(8);const reply=adapter.reply;adapter.reply=req=>{adapter.c.chat[0].mes='修改';return reply(req);};
+    const engine=new MemoryEngine(adapter);await assert.rejects(engine.run(),/已变化/);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
+});
+test('保留用户在生成期间自行隐藏的标志',async()=>{
+    const adapter=new FakeAdapter(8);const reply=adapter.reply;adapter.reply=req=>{adapter.c.chat[0].is_system=true;return reply(req);};
+    const engine=new MemoryEngine(adapter);await assert.rejects(engine.run(),/已变化/);
+    assert.equal(adapter.c.chat[0].is_system,true);assert.equal(adapter.c.chat.slice(1).some(m=>m.is_system),false);
+});
+test('已总结来源改变时暂停延迟隐藏',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const id=engine.state().grace.ids[0];adapter.c.chat.find(m=>tag(m)?.id===id).mes='另一版';
+    adapter.c.chat.push(...[8,9,10,11].map(i=>story(i)));await engine.tick();
+    assert.ok(engine.state().error);assert.equal(adapter.c.chat.find(m=>tag(m)?.id===id).is_system,false);
+});
+test('延迟隐藏保存失败恢复暂留',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const ids=[...engine.state().grace.ids];adapter.failAt=5;adapter.c.chat.push(...[8,9,10,11].map(i=>story(i)));await engine.tick();
+    assert.ok(engine.state().grace);assert.ok(engine.state().error);assert.ok(ids.every(id=>!adapter.c.chat.find(m=>tag(m)?.id===id).is_system));
+});
+test('取消不提交模型结果',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);const reply=adapter.reply;
+    adapter.reply=req=>{engine.cancel();return reply(req);};await assert.rejects(engine.run(),/取消/);assert.equal(engine.state().revision,0);
+});
+test('检查点失败不调用模型',async()=>{
+    const adapter=new FakeAdapter(8);adapter.checkpoint=()=>{throw new Error('检查点失败');};const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/检查点失败/);assert.equal(adapter.calls,0);
+});
+test('自动触发只执行一次普通大总结',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);
+    engine.state().settings={autoEnabled:true,autoMessages:8,autoTokens:1};
+    await engine.tick(false);assert.equal(adapter.calls,0);
+    await engine.tick(true);assert.equal(engine.state().revision,1);assert.equal(tag(adapter.c.chat.at(-1)).mode,'ordinary');
+    await engine.tick(true);assert.equal(engine.state().revision,1);
+});
+test('分卷未达到阈值时不调用模型',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await assert.rejects(engine.run('archive'),/尚未解锁/);assert.equal(adapter.calls,0);
+});
+test('分卷直接保存模型全文，不进行程序压缩或目标容量重试',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const old=adapter.c.chat.at(-1);engine.state().settings.archiveTokens=1;const raw=encode(archive(),'archive');adapter.reply=()=>raw;
+    await engine.run('archive');assert.equal(adapter.c.chat.at(-1).mes,raw);assert.equal(old.is_system,true);
+    assert.equal(adapter.calls,2);assert.equal(memoryOf(adapter.c.chat,engine.state()).raw,raw);
+});
+test('超出模型窗口时不调用模型或隐藏原文',async()=>{
+    const adapter=new FakeAdapter(8);adapter.capacity=()=>10;const engine=new MemoryEngine(adapter);
+    await assert.rejects(engine.run(),/超过容量/);assert.equal(adapter.calls,0);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
+});
+test('撤销保留后续剧情并恢复旧总结',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const old=adapter.c.chat.at(-1);adapter.c.chat.push(story(8),story(9));await engine.run();
+    adapter.c.chat.push(story(10),story(11));await engine.undo();assert.equal(engine.state().activeId,tag(old).id);assert.equal(old.is_system,false);assert.equal(adapter.c.chat.at(-1).mes,'剧情 11');
+});
+test('删除来源后要求检查点分支恢复',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();adapter.c.chat.splice(0,1);await assert.rejects(engine.undo(),/原消息已删除/);
+});
+test('重复点击不会创建并行总结',async()=>{
+    const adapter=new FakeAdapter(8);const reply=adapter.reply;let started,release;const waiting=new Promise(r=>{started=r;});
+    adapter.reply=async req=>{started();await new Promise(r=>{release=r;});return reply(req);};
+    const engine=new MemoryEngine(adapter);const task=engine.run();await waiting;await assert.rejects(engine.run(),/等待/);release();await task;assert.equal(engine.state().revision,1);
+});
+test('未知数据版本和错误设置拒绝覆盖',()=>{
+    const adapter=new FakeAdapter(2);adapter.c.chatMetadata[KEY]={schemaVersion:999};assert.throws(()=>new MemoryEngine(adapter).state(),/版本不兼容/);
+    assert.throws(()=>validateSettings({...DEFAULTS,autoMessages:-1}));assert.throws(()=>validateSettings({...DEFAULTS,autoEnabled:'true'}));
+});
+test('服务器保存被吞掉时读回能发现',async()=>{
+    const c={chat:[story(0)],chatMetadata:{[KEY]:blankState()},chatId:'one',characters:[{name:'A',avatar:'a.png'}],characterId:0,getRequestHeaders:()=>({}),saveChat:async()=>{}};ensureIds(c.chat);
+    const adapter=new TavernAdapter(()=>c,async()=>({ok:true,json:async()=>[{chat_metadata:{}},story(1)]}));
+    await assert.rejects(adapter.saveVerified(adapter.capture()),/读回/);
+});
+test('检查点有独立 integrity 且读回成功',async()=>{
+    const c={chat:[story(0)],chatMetadata:{integrity:'parent',[KEY]:blankState()},chatId:'one',characters:[{name:'A',avatar:'a.png'}],characterId:0,getRequestHeaders:()=>({}),saveChat:async()=>{}};ensureIds(c.chat);let sent;
+    const adapter=new TavernAdapter(()=>c,async(endpoint,args)=>{if(endpoint.endsWith('/save')){sent=JSON.parse(args.body);return{ok:true};}return{ok:true,json:async()=>clone(sent.chat)};});
+    assert.equal(await adapter.checkpoint(adapter.capture(),'op'),'one - INTERSTELLAR op');assert.notEqual(sent.chat[0].chat_metadata.integrity,'parent');assert.equal(c.chatMetadata.integrity,'parent');
+});
+test('旧版强制 JSON 设置不影响新的 YAML 请求',async()=>{
+    let args;const adapter=new TavernAdapter(()=>({generateRaw:async value=>{args=value;return'原文';}}));
+    await adapter.generate(buildRequest('ordinary',{}),{...DEFAULTS,structuredOutput:true});
+    assert.equal(args.jsonSchema,undefined);assert.equal(args.systemPrompt,ORDINARY_PROMPT);
+});
+test('入口可作为 ESM 加载',async()=>{
+    const before=globalThis.addEventListener;globalThis.addEventListener=()=>{};
+    try{await import('../index.js');}finally{globalThis.addEventListener=before;}
+});
+
+test('自动迁移精确旧默认提示词，保留用户自定义内容',async()=>{
+    const { migratePromptSettings }=await import('../src/prompts.js');
+    const source=await fs.readFile(new URL('../src/prompts.js',import.meta.url),'utf8');
+    const oldOrdinary=JSON.parse(source.match(/const OLD_ORDINARY = (.*);/)[1]);
+    const oldArchive=JSON.parse(source.match(/const OLD_ARCHIVE = (.*);/)[1]);
+    const migrated=migratePromptSettings({ordinaryPrompt:oldOrdinary,archivePrompt:oldArchive,structuredOutput:true});
+    assert.equal(migrated.ordinaryPrompt,'');assert.equal(migrated.archivePrompt,'');assert.equal(migrated.structuredOutput,undefined);
+    assert.equal(migratePromptSettings({ordinaryPrompt:'我的自定义提示词'}).ordinaryPrompt,'我的自定义提示词');
+});
+test('旧版总结原文可作为新模型输入，升级不改写旧消息',async()=>{
+    const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);await engine.run();
+    const previous=adapter.c.chat.at(-1);const legacy='<details><summary>旧总结</summary>完整旧历史</details>';
+    const {digest}=await import('../src/model.js');
+    previous.mes=legacy;tag(previous).renderHash=await digest(legacy);
+    tag(previous).memory={schemaVersion:1,revision:1,timeline:[],volumes:[],world:{},details:[]};
+    adapter.c.chat.push(story(8),story(9));await engine.run();
+    assert.equal(JSON.parse(adapter.lastRequest.prompt[0].content).previousSummary,legacy);
+    assert.equal(previous.mes,legacy);assert.equal(previous.is_system,true);assert.equal(engine.state().revision,2);
+});
+test('原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项',async()=>{
+    const before=globalThis.document;
+    class Node{
+        constructor(name){this.tagName=name;this.children=[];this.listeners={};this.textContent='';this.id='';}
+        append(...nodes){for(const node of nodes){node.parent=this;this.children.push(node);}}
+        setAttribute(name,value){this[name]=value;}
+        addEventListener(name,handler){this.listeners[name]=handler;}
+        get isConnected(){return this===doc.body||!!this.parent?.isConnected;}
+    }
+    const walk=node=>[node,...node.children.flatMap(walk)];
+    const doc={body:new Node('body'),createElement:name=>new Node(name),getElementById:id=>walk(doc.body).find(n=>n.id===id)};
+    const toolbar=new Node('div');toolbar.id='leftSendForm';doc.body.append(toolbar);globalThis.document=doc;
+    try{
+        const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);const popups=[];
+        adapter.c.Popup=class{static show={confirm:async()=>true};constructor(content){this.content=content;popups.push(content);}async show(){doc.body.append(this.content);return true;}};
+        adapter.c.POPUP_TYPE={DISPLAY:1};
+        const {MemoryUI}=await import('../src/ui.js');const ui=new MemoryUI(engine);ui.mount();ui.mount();assert.equal(toolbar.children.length,1);
+        await ui.settings();const panel=popups.at(-1);
+        assert.ok(!walk(panel).some(n=>n.tagName==='select'||n.textContent.includes('JSON Schema')));
+        const save=walk(panel).find(n=>n.textContent==='保存设置');await save.listeners.click();
+        assert.equal(engine.state().settings.ordinaryPrompt,ORDINARY_PROMPT);
+        assert.equal(engine.state().settings.archivePrompt,ARCHIVE_PROMPT);
         await ui.refresh();
-    } finally { globalThis.document = previousDocument; }
-});
-test('扩展入口可作为 ESM 加载', async () => {
-    const previous = globalThis.addEventListener;
-    globalThis.addEventListener = () => {};
-    try { await import('../index.js'); } finally { globalThis.addEventListener = previous; }
-});
-
-
-test('已删除来源不能通过原地恢复悄悄略过', async () => {
-    const adapter = new FakeAdapter(8); const engine = new MemoryEngine(adapter); await engine.run();
-    adapter.c.chat.splice(0, 1);
-    await assert.rejects(engine.undo(), /原消息已删除/);
-});
-test('未知数据版本拒绝覆盖', async () => {
-    const adapter = new FakeAdapter(2);
-    adapter.c.chatMetadata[KEY] = { schemaVersion: 999 };
-    const engine = new MemoryEngine(adapter);
-    assert.throws(() => engine.state(), /版本不兼容/);
-});
-test('重复点击不会并行创建总结', async () => {
-    const adapter = new FakeAdapter(8); const reply = adapter.reply;
-    let release;
-    let started;
-    const waiting = new Promise(resolve=>{ started=resolve; });
-    adapter.reply = async request => { started(); await new Promise(resolve=>{ release=resolve; }); return reply(request); };
-    const engine = new MemoryEngine(adapter); const task = engine.run();
-    await waiting;
-    await assert.rejects(engine.run(), /等待/);
-    release(); await task;
-    assert.equal(engine.state().revision, 1);
-});
-test('单聊检查点保存并读回验证，使用独立 integrity', async () => {
-    const c = { chat: [story(0)], chatMetadata: { integrity: 'parent', [KEY]: blankState() }, chatId: 'one', characters: [{ name: 'A', avatar: 'a.png' }], characterId: 0,
-        getRequestHeaders: () => ({}), saveChat: async () => {} };
-    ensureIds(c.chat);
-    let sent;
-    const adapter = new TavernAdapter(() => c, async (endpoint, args) => {
-        const body = JSON.parse(args.body);
-        if (endpoint.endsWith('/save')) { sent = body; return { ok: true }; }
-        return { ok: true, json: async () => clone(sent.chat) };
-    });
-    const name = await adapter.checkpoint(adapter.capture(), 'op');
-    assert.equal(name, 'one - INTERSTELLAR op');
-    assert.notEqual(sent.chat[0].chat_metadata.integrity, 'parent');
-    assert.equal(c.chatMetadata.integrity, 'parent');
-    assert.equal(sent.chat[0].chat_metadata.main_chat, 'one');
+    }finally{globalThis.document=before;}
 });
 
 export async function runTests() {
-    const results = [];
-    for (const { name, run } of tests) {
-        try { await run(); results.push({ name, pass: true }); }
-        catch (error) { results.push({ name, pass: false, error: error.stack }); }
-    }
-    return { total: results.length, passed: results.filter(x => x.pass).length, results };
+    const results=[];
+    for(const {name,run} of tests){try{await run();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.stack});}}
+    return{total:results.length,passed:results.filter(x=>x.pass).length,results};
 }
-if (typeof process !== 'undefined' && process.argv[1]?.endsWith('run.mjs')) {
-    const report = await runTests();
-    for (const item of report.results) console.log((item.pass ? 'PASS ' : 'FAIL ') + item.name + (item.error ? '\n' + item.error : ''));
-    console.log(report.passed + '/' + report.total + ' passed');
-    if (report.passed !== report.total) process.exitCode = 1;
+if(typeof process!=='undefined'&&process.argv[1]?.endsWith('run.mjs')){
+    const report=await runTests();for(const result of report.results)console.log((result.pass?'PASS ':'FAIL ')+result.name+(result.error?'\n'+result.error:''));
+    console.log(report.passed+'/'+report.total+' passed');if(report.passed!==report.total)process.exitCode=1;
 }

@@ -1,11 +1,10 @@
 import {
-    KEY, clone, uuid, digest, stable, tag, isStory, isSummary, ensureIds, chatHash, contentHash,
-    blankState, stateOf, settingsOf, activeOf, memoryOf, validateActive, mergeResult, hiddenPlan, graceProgress,
+    KEY, clone, uuid, digest, tag, isStory, isSummary, ensureIds, chatHash, contentHash,
+    blankState, stateOf, settingsOf, activeOf, memoryOf, validateActive, hiddenPlan, graceProgress,
     setHidden, eligibleStats, shouldAuto, validateSettings,
 } from './model.js';
 import { buildRequest } from './prompts.js';
 import { parseResult } from './schema.js';
-import { renderMemory } from './render.js';
 
 export class MemoryEngine {
     constructor(adapter, changed = () => {}) {
@@ -33,7 +32,7 @@ export class MemoryEngine {
         const stats = eligibleStats(handle.chat);
         const memory = memoryOf(handle.chat, state);
         const [tokens, memoryTokens] = await Promise.all([
-            this.adapter.tokens(stats.text), this.adapter.tokens(JSON.stringify(memory)),
+            this.adapter.tokens(stats.text), this.adapter.tokens(activeOf(handle.chat, state)?.mes ?? ''),
         ]);
         this.adapter.assertCurrent(handle);
         return { count: stats.count, tokens, memoryTokens, revision: state.revision, error: state.error,
@@ -75,26 +74,23 @@ export class MemoryEngine {
             const coverage = clone(previous ? tag(previous).coverage : {});
             const fresh = handle.chat.filter(m => isStory(m) && !Object.hasOwn(coverage, tag(m).id));
             if (mode === 'ordinary' && !fresh.length) throw new Error('没有尚未总结的新剧情。');
-            const memoryTokens = await this.adapter.tokens(JSON.stringify(memory));
+            const memoryTokens = await this.adapter.tokens(previous?.mes ?? '');
             if (mode === 'archive' && (!previous || memoryTokens < settings.archiveTokens)) throw new Error('分卷尚未解锁：有效记忆需达到 ' + settings.archiveTokens + ' Token。');
             // Archive only reorganizes covered memory; fresh prose stays visible until an ordinary summary.
             const selected = mode === 'ordinary' ? fresh : [];
             const records = await Promise.all(selected.map(async m => ({ id: tag(m).id, role: m.is_user ? 'user' : 'assistant', name: m.name, text: m.mes })));
             const input = {
-                baseRevision: memory.revision, memory,
+                previousSummary: previous?.mes ?? '',
                 newMessages: records,
                 characterContext: this.adapter.materials?.() ?? {},
                 relatedSettings: settings.relevantSettings,
                 latestForeshadowing: settings.foreshadowing,
                 additionalArchives: settings.archiveNotes,
                 lockedRecords: settings.lockedText,
-                units: [...memory.volumes.map(v => v.id), ...memory.timeline.map(e => e.id)],
-                capacityTargetTokens: mode === 'archive' ? settings.archiveTokens - 1 : null,
             };
             const custom = mode === 'ordinary' ? settings.ordinaryPrompt : settings.archivePrompt;
             const request = buildRequest(mode, input, custom);
-            const requestTokens = await this.adapter.tokens(request.systemPrompt + '\n' + JSON.stringify(request.prompt) +
-                (settings.structuredOutput ? '\n' + JSON.stringify(request.schema) : ''));
+            const requestTokens = await this.adapter.tokens(request.systemPrompt + '\n' + JSON.stringify(request.prompt));
             const capacity = this.adapter.capacity(settings);
             // Reserve output plus a conservative format margin; never silently truncate.
             if (!Number.isFinite(capacity) || capacity <= 0) throw new Error('无法读取模型上下文容量，请在设置中填写。');
@@ -119,30 +115,17 @@ export class MemoryEngine {
             if (automatic) state.autoAttempt = sourceHash;
             await this.adapter.saveVerified(handle);
             this.changed();
-            const result = parseResult(await this.adapter.generate(request, settings), mode);
+            const result = parseResult(await this.adapter.generate(request, settings), mode, this.adapter.yaml());
             await this.guard(handle, sourceHash);
-            if (mode === 'ordinary' && !result.newEvents.length && !result.eventUpdates.length) throw new Error('总结没有可用事件结果，原上下文保持不变。');
-            const next = mergeResult(memory, result, id, settings.lockedText);
-            next.foreshadowing = settings.foreshadowing;
-            const allowedSources = new Set(records.map(record => record.id));
+            // The model owns the complete summary; no narrative transformation is performed here.
+            const next = { schemaVersion: 1, revision: memory.revision + 1,
+                mode, raw: result.raw, document: result.document };
             if (mode === 'ordinary') {
-                for (const event of [...result.newEvents, ...result.eventUpdates.map(x => x.record)]) {
-                    if (!event.sources.length || event.sources.some(ref => !allowedSources.has(ref) && !Object.hasOwn(coverage, ref))) throw new Error('事件来源引用无效，未隐藏原文。');
-                }
                 for (const message of selected) coverage[tag(message).id] = await contentHash(message);
-            }
-            if (mode === 'archive') {
-                const total = await this.adapter.tokens(JSON.stringify(next));
-                if (total >= settings.archiveTokens) {
-                    // Retain model result on server as an operation draft for export/review.
-                    operation.draft = next;
-                    operation.capacityNote = result.capacityNote;
-                    throw new Error('分卷结果仍有 ' + total + ' Token，未低于目标 ' + settings.archiveTokens + '。草稿保留在操作记录，未接替当前记忆。');
-                }
             }
             await this.guard(handle, sourceHash);
             const summaryId = uuid();
-            const text = renderMemory(next, mode, next.revision);
+            const text = result.raw;
             const ancestors = previous ? [tag(previous).id, ...tag(previous).ancestors] : [];
             staged = {
                 name: '星间 · INTERSTELLAR', is_user: false, is_system: false, send_date: Date.now(),
