@@ -7,6 +7,7 @@ export function migratePromptSettings(settings) {
     const next = { ...settings };
     if (next.ordinaryPrompt === OLD_ORDINARY) next.ordinaryPrompt = "";
     if (next.archivePrompt === OLD_ARCHIVE) next.archivePrompt = "";
+    if (next.responseTokens === 16384) next.responseTokens = 65000;
     delete next.structuredOutput;
     return next;
 }

@@ -129,7 +129,7 @@ export class MemoryUI {
                 status.textContent = '未隐藏剧情 ' + stats.count + ' 层 · ' + stats.tokens.toLocaleString() +
                     ' Token；有效记忆 ' + stats.memoryTokens.toLocaleString() + ' Token；总结版本 ' + stats.revision +
                     (stats.grace ? '\n暂留 ' + stats.grace.retained + ' 层；新增剧情 ' + Math.min(4, stats.grace.progress) + '/4 层' : '');
-                warning.textContent = stats.error || (stats.pending ? '上次操作中断，请先恢复。' : '');
+                warning.textContent = stats.error || (this.engine.running ? '正在整理并等待模型返回，请稍候…' : (stats.pending ? '上次操作中断，请先恢复。' : ''));
                 ordinary.disabled = this.engine.running || stats.pending;
                 archive.disabled = this.engine.running || stats.pending || !stats.revision || stats.memoryTokens < settings.archiveTokens;
                 archive.title = archive.disabled ? '有效记忆达到 ' + settings.archiveTokens.toLocaleString() + ' Token 后开放' : '按自然故事阶段归档';

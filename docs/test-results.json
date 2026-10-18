@@ -1,11 +1,11 @@
 {
   "date": "2026-10-18",
-  "version": "0.2.1",
-  "environment": "Node.js simulated core/UI generation states, YAML, server responses and DOM fixture",
+  "version": "0.2.2",
+  "environment": "Node.js simulated native/UI generation, model requests, YAML, persistence and UI DOM fixture",
   "liveSillyTavern": false,
   "liveModel": false,
-  "total": 48,
-  "passed": 48,
+  "total": 49,
+  "passed": 49,
   "results": [
     {
       "name": "两套默认提示词与用户文本文件逐字一致",
@@ -197,6 +197,10 @@
     },
     {
       "name": "总结结束释放自己的 UI 锁，但不清除真实原生生成状态",
+      "pass": true
+    },
+    {
+      "name": "默认输出上限为 65000，升级旧默认但保留其他自定义值",
       "pass": true
     }
   ]

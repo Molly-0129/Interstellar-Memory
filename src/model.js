@@ -71,7 +71,7 @@ export async function validateActive(chat, state) {
 }
 export const DEFAULTS = Object.freeze({
     autoEnabled: false, autoMessages: 200, autoTokens: 256000, archiveTokens: 64000,
-    responseTokens: 16384, contextLimit: 0,
+    responseTokens: 65000, contextLimit: 0,
     lockedText: '', archiveNotes: '', foreshadowing: '', relevantSettings: '',
     ordinaryPrompt: '', archivePrompt: '',
 });

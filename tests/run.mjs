@@ -307,6 +307,13 @@ test('原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项',
         const save=walk(panel).find(n=>n.textContent==='保存设置');await save.listeners.click();
         assert.equal(engine.state().settings.ordinaryPrompt,ORDINARY_PROMPT);
         assert.equal(engine.state().settings.archivePrompt,ARCHIVE_PROMPT);
+        engine.running=true;
+        engine.stats=async()=>({count:8,tokens:100,memoryTokens:0,revision:0,error:'',pending:true});
+        await ui.open();
+        assert.ok(walk(popups.at(-1)).some(n=>n.textContent==='正在整理并等待模型返回，请稍候…'));
+        engine.running=false;
+        await ui.open();
+        assert.ok(walk(popups.at(-1)).some(n=>n.textContent==='上次操作中断，请先恢复。'));
         await ui.refresh();
     }finally{globalThis.document=before;}
 });
@@ -350,6 +357,17 @@ test('总结结束释放自己的 UI 锁，但不清除真实原生生成状态'
         adapter.nativeIsGenerating=()=>false;adapter.lock()();assert.equal(activated,1);
         adapter.nativeIsGenerating=()=>true;adapter.lock()();assert.equal(activated,1);
     }finally{globalThis.document=before;}
+});
+
+
+test('默认输出上限为 65000，升级旧默认但保留其他自定义值',async()=>{
+    const {migratePromptSettings}=await import('../src/prompts.js');
+    assert.equal(DEFAULTS.responseTokens,65000);
+    assert.equal(migratePromptSettings({responseTokens:16384}).responseTokens,65000);
+    assert.equal(migratePromptSettings({responseTokens:32000}).responseTokens,32000);
+    let args;const adapter=new TavernAdapter(()=>({generateRaw:async a=>{args=a;return'原文';}}));
+    await adapter.generate(buildRequest('ordinary',{}),DEFAULTS);
+    assert.equal(args.responseLength,65000);
 });
 
 export async function runTests() {
