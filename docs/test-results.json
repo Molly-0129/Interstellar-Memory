@@ -1,11 +1,11 @@
 {
   "date": "2026-10-18",
-  "version": "0.2.2",
-  "environment": "Node.js simulated native/UI generation, model requests, YAML, persistence and UI DOM fixture",
+  "version": "0.2.3",
+  "environment": "Node.js simulated core/UI state, full nested/flat YAML, persistence and DOM fixture",
   "liveSillyTavern": false,
   "liveModel": false,
-  "total": 49,
-  "passed": 49,
+  "total": 53,
+  "passed": 53,
   "results": [
     {
       "name": "两套默认提示词与用户文本文件逐字一致",
@@ -201,6 +201,22 @@
     },
     {
       "name": "默认输出上限为 65000，升级旧默认但保留其他自定义值",
+      "pass": true
+    },
+    {
+      "name": "普通总结接受提示词中的平铺范围布局，正文完全不变",
+      "pass": true
+    },
+    {
+      "name": "分卷总结接受平铺范围、当前卷和整理检查，不重排内容",
+      "pass": true
+    },
+    {
+      "name": "真实流程可提交完整平铺 YAML",
+      "pass": true
+    },
+    {
+      "name": "失败响应原文保留在恢复记录，不隐藏来源",
       "pass": true
     }
   ]

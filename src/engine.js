@@ -65,6 +65,7 @@ export class MemoryEngine {
         const unlock = this.adapter.lock();
         let staged = null;
         let operation = null;
+        let responseRaw = null;
         try {
             ensureIds(handle.chat);
             await validateActive(handle.chat, state);
@@ -115,7 +116,8 @@ export class MemoryEngine {
             if (automatic) state.autoAttempt = sourceHash;
             await this.adapter.saveVerified(handle);
             this.changed();
-            const result = parseResult(await this.adapter.generate(request, settings), mode, this.adapter.yaml());
+            responseRaw = await this.adapter.generate(request, settings);
+            const result = parseResult(responseRaw, mode, this.adapter.yaml());
             await this.guard(handle, sourceHash);
             // The model owns the complete summary; no narrative transformation is performed here.
             const next = { schemaVersion: 1, revision: memory.revision + 1,
@@ -162,6 +164,7 @@ export class MemoryEngine {
             try {
                 this.adapter.assertCurrent(handle);
                 if (operation) {
+                    if (responseRaw !== null) operation.responseRaw = responseRaw;
                     const before = operation.beforeHidden;
                     for (const message of handle.chat) {
                         const id = tag(message)?.id;

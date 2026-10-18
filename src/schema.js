@@ -45,7 +45,10 @@ export function validateDocument(document, mode) {
     mapping(document, '总结');
     const expected = mode === 'ordinary' ? '普通大总结' : '分卷大总结';
     if (document.记忆模式 !== expected) throw new Error('记忆模式应为“' + expected + '”。');
-    record(document[mode === 'ordinary' ? '总结范围' : '整理范围'], { 起点: 'text', 截至: 'text' }, '整理范围');
+    const rangeKey = mode === 'ordinary' ? '总结范围' : '整理范围';
+    if (!Object.hasOwn(document, rangeKey)) throw new Error('缺少' + rangeKey + '。');
+    const range = document[rangeKey] === null ? document : document[rangeKey];
+    record(range, { 起点: 'text', 截至: 'text' }, rangeKey);
     // The supplied template permits world lists at root; also accept normal nested YAML.
     if (!Object.hasOwn(document, '当前世界状态')) throw new Error('缺少当前世界状态。');
     const world = document.当前世界状态 ?? {};
@@ -64,12 +67,16 @@ export function validateDocument(document, mode) {
             if (!Object.hasOwn(volume, '卷号') || !['string', 'number'].includes(typeof volume.卷号)) throw new Error('卷号格式不正确。');
             list(volume.关键事件, '卷宗关键事件', { 时间: 'text', 地点: 'text', 参与人物: 'list', 事件与因果: 'text', 重要细节: 'text', 长期影响: 'text' });
         });
-        record(document.当前卷, { 卷名: 'text', 起始时间: 'text' }, '当前卷');
-        if (!Object.hasOwn(document.当前卷, '卷号') || !['string', 'number'].includes(typeof document.当前卷.卷号)) throw new Error('当前卷卷号格式不正确。');
-        list(document.当前卷.事件时间线, '当前卷事件时间线', eventFields);
+        if (!Object.hasOwn(document, '当前卷')) throw new Error('缺少当前卷。');
+        const current = document.当前卷 === null ? document : document.当前卷;
+        record(current, { 卷名: 'text', 起始时间: 'text' }, '当前卷');
+        if (!Object.hasOwn(current, '卷号') || !['string', 'number'].includes(typeof current.卷号)) throw new Error('当前卷卷号格式不正确。');
+        list(current.事件时间线, '当前卷事件时间线', eventFields);
         list(document.跨卷重要细节, '跨卷重要细节', { 内容: 'text', 来源卷宗: 'text', 保存理由: 'text', 当前效力: 'text' });
-        mapping(document.整理检查, '整理检查');
-        if (!Array.isArray(document.整理检查.待核实事项) || document.整理检查.待核实事项.some(x => typeof x !== 'string')) throw new Error('待核实事项必须是文本列表。');
+        if (!Object.hasOwn(document, '整理检查')) throw new Error('缺少整理检查。');
+        const checks = document.整理检查 === null ? document : document.整理检查;
+        mapping(checks, '整理检查');
+        if (!Array.isArray(checks.待核实事项) || checks.待核实事项.some(x => typeof x !== 'string')) throw new Error('待核实事项必须是文本列表。');
     }
     return document;
 }

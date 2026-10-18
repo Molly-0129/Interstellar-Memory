@@ -370,6 +370,28 @@ test('默认输出上限为 65000，升级旧默认但保留其他自定义值',
     assert.equal(args.responseLength,65000);
 });
 
+
+test('普通总结接受提示词中的平铺范围布局，正文完全不变',()=>{
+    const doc=ordinary();Object.assign(doc,doc.总结范围);doc.总结范围=null;
+    Object.assign(doc,doc.当前世界状态);doc.当前世界状态=null;
+    const raw=encode(doc);assert.equal(parseResult(raw,'ordinary',YAML).raw,raw);
+});
+test('分卷总结接受平铺范围、当前卷和整理检查，不重排内容',()=>{
+    const doc=archive();Object.assign(doc,doc.整理范围);doc.整理范围=null;
+    Object.assign(doc,doc.当前卷);doc.当前卷=null;Object.assign(doc,doc.整理检查);doc.整理检查=null;
+    const raw=encode(doc,'archive');assert.equal(parseResult(raw,'archive',YAML).raw,raw);
+});
+test('真实流程可提交完整平铺 YAML',async()=>{
+    const adapter=new FakeAdapter(8);const doc=ordinary();Object.assign(doc,doc.总结范围);doc.总结范围=null;
+    const raw=encode(doc);adapter.reply=()=>raw;const engine=new MemoryEngine(adapter);await engine.run();
+    assert.equal(adapter.c.chat.at(-1).mes,raw);assert.equal(engine.state().revision,1);assert.equal(adapter.c.chat.filter(isStory).length,4);
+});
+test('失败响应原文保留在恢复记录，不隐藏来源',async()=>{
+    const adapter=new FakeAdapter(8);const raw='<星间大总结>\na: [\n</星间大总结>';adapter.reply=()=>raw;
+    const engine=new MemoryEngine(adapter);await assert.rejects(engine.run(),/YAML/);
+    assert.equal(engine.state().pending.responseRaw,raw);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
+});
+
 export async function runTests() {
     const results=[];
     for(const {name,run} of tests){try{await run();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.stack});}}
