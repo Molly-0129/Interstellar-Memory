@@ -56,8 +56,7 @@ export class MemoryUI {
     }
     mount() {
         const form = document.getElementById('send_form');
-        const target = document.getElementById('form_sheld');
-        if (form && target && !document.getElementById('interstellar-memory-button')) {
+        if (form && !document.getElementById('interstellar-memory-button')) {
             const dock = el('div', undefined, 'im-launch-dock');
             dock.id = 'interstellar-memory-dock';
             const launch = button('✦', () => this.attempt(() => this.open()));
@@ -65,7 +64,7 @@ export class MemoryUI {
             launch.title = '星间 · INTERSTELLAR 记忆';
             launch.setAttribute('aria-label', launch.title);
             dock.append(launch);
-            target.insertBefore(dock, form);
+            form.prepend(dock);
         }
         this.mountSettings();
     }

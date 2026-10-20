@@ -1,4 +1,4 @@
-/* Keep the launcher outside theme-specific send toolbar layouts. */
+/* Place the compact launcher inside the composer, above its toolbar. */
 #interstellar-memory-dock {
     display: flex !important;
     justify-content: center !important;
