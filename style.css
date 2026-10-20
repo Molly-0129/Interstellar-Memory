@@ -1,4 +1,49 @@
-#interstellar-memory-button { min-width: 30px; margin: 0 3px; font-size: 1.15em; }
+/* Keep the launcher outside theme-specific send toolbar layouts. */
+#interstellar-memory-dock {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex: 0 0 28px !important;
+    width: 100% !important;
+    height: 28px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+#interstellar-memory-dock > #interstellar-memory-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: static !important;
+    flex: 0 0 22px !important;
+    box-sizing: border-box !important;
+    width: 22px !important;
+    min-width: 22px !important;
+    max-width: 22px !important;
+    height: 22px !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    transform: none !important;
+    writing-mode: horizontal-tb !important;
+    cursor: pointer;
+}
+#interstellar-settings-entry { width: 100%; min-width: 0; }
+#interstellar-settings-entry .inline-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    writing-mode: horizontal-tb;
+    white-space: nowrap;
+}
+#interstellar-settings-entry .inline-drawer-header b { flex: 1; min-width: 0; }
+#interstellar-settings-entry .inline-drawer-icon { flex: 0 0 auto; }
+#interstellar-settings-entry .inline-drawer-content > button { width: auto; white-space: normal; }
 .im-panel { text-align: left; color: var(--SmartThemeBodyColor); }
 .im-panel h3 { margin: 0 0 12px; }
 .im-panel details { margin: 10px 0; padding: 8px; border: 1px solid var(--SmartThemeBorderColor); border-radius: 8px; }

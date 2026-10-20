@@ -55,15 +55,38 @@ export class MemoryUI {
         }
     }
     mount() {
-        if (document.getElementById('interstellar-memory-button')) return;
-        const target = document.getElementById('leftSendForm') || document.getElementById('send_form');
-        if (!target) return;
-        const launch = button('✦', () => this.attempt(() => this.open()));
-        launch.id = 'interstellar-memory-button';
-        launch.title = '星间 · INTERSTELLAR 记忆';
-        launch.setAttribute('aria-label', launch.title);
-        target.append(launch);
-
+        const form = document.getElementById('send_form');
+        const target = document.getElementById('form_sheld');
+        if (form && target && !document.getElementById('interstellar-memory-button')) {
+            const dock = el('div', undefined, 'im-launch-dock');
+            dock.id = 'interstellar-memory-dock';
+            const launch = button('✦', () => this.attempt(() => this.open()));
+            launch.id = 'interstellar-memory-button';
+            launch.title = '星间 · INTERSTELLAR 记忆';
+            launch.setAttribute('aria-label', launch.title);
+            dock.append(launch);
+            target.insertBefore(dock, form);
+        }
+        this.mountSettings();
+    }
+    mountSettings() {
+        const target = document.getElementById('extensions_settings2');
+        if (!target || document.getElementById('interstellar-settings-entry')) return;
+        const entry = el('div');
+        entry.id = 'interstellar-settings-entry';
+        const drawer = el('div', undefined, 'inline-drawer');
+        const header = el('div', undefined, 'inline-drawer-toggle inline-drawer-header');
+        header.append(el('b', '星间记忆'), el('div', undefined, 'inline-drawer-icon fa-solid fa-circle-chevron-down down'));
+        header.setAttribute('role', 'button');
+        header.setAttribute('tabindex', '0');
+        header.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
+        });
+        const content = el('div', undefined, 'inline-drawer-content');
+        content.append(button('打开星间记忆设置', () => this.attempt(() => this.settings())));
+        drawer.append(header, content);
+        entry.append(drawer);
+        target.append(entry);
     }
     async refresh() {
 

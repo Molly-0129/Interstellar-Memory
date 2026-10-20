@@ -51,15 +51,6 @@ async function initialize() {
     }
     bind('CHAT_LOADED', () => schedule(false));
     bind('GROUP_WRAPPER_FINISHED', () => schedule(true));
-    // A simple settings entry opens the same native settings panel.
-    const target = document.getElementById('extensions_settings2');
-    if (target && !document.getElementById('interstellar-settings-entry')) {
-        const button = document.createElement('button');
-        button.id = 'interstellar-settings-entry'; button.className = 'menu_button'; button.type = 'button';
-        button.textContent = '✦ 星间记忆设置';
-        button.addEventListener('click', () => ui.attempt(() => ui.settings()));
-        target.append(button);
-    }
     schedule(false);
 }
 if (globalThis.SillyTavern?.getContext) {

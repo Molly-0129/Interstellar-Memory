@@ -290,18 +290,19 @@ test('原生界面挂载一次，设置没有 JSON 输出或消息皮肤选项',
     class Node{
         constructor(name){this.tagName=name;this.children=[];this.listeners={};this.textContent='';this.id='';}
         append(...nodes){for(const node of nodes){node.parent=this;this.children.push(node);}}
+        insertBefore(node,reference){node.parent=this;this.children.splice(this.children.indexOf(reference),0,node);}
         setAttribute(name,value){this[name]=value;}
         addEventListener(name,handler){this.listeners[name]=handler;}
         get isConnected(){return this===doc.body||!!this.parent?.isConnected;}
     }
     const walk=node=>[node,...node.children.flatMap(walk)];
     const doc={body:new Node('body'),createElement:name=>new Node(name),getElementById:id=>walk(doc.body).find(n=>n.id===id)};
-    const toolbar=new Node('div');toolbar.id='leftSendForm';doc.body.append(toolbar);globalThis.document=doc;
+    const toolbar=new Node('div');toolbar.id='form_sheld';const form=new Node('div');form.id='send_form';toolbar.append(form);const extensions=new Node('div');extensions.id='extensions_settings2';doc.body.append(toolbar,extensions);globalThis.document=doc;
     try{
         const adapter=new FakeAdapter(8);const engine=new MemoryEngine(adapter);const popups=[];
         adapter.c.Popup=class{static show={confirm:async()=>true};constructor(content){this.content=content;popups.push(content);}async show(){doc.body.append(this.content);return true;}};
         adapter.c.POPUP_TYPE={DISPLAY:1};
-        const {MemoryUI}=await import('../src/ui.js');const ui=new MemoryUI(engine);ui.mount();ui.mount();assert.equal(toolbar.children.length,1);
+        const {MemoryUI}=await import('../src/ui.js');const ui=new MemoryUI(engine);ui.mount();ui.mount();assert.equal(toolbar.children.length,2);assert.equal(toolbar.children[0].id,'interstellar-memory-dock');assert.equal(extensions.children.length,1);
         await ui.settings();const panel=popups.at(-1);
         assert.ok(!walk(panel).some(n=>n.tagName==='select'||n.textContent.includes('JSON Schema')));
         const save=walk(panel).find(n=>n.textContent==='保存设置');await save.listeners.click();

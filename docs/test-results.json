@@ -1,9 +1,6 @@
 {
-  "date": "2026-10-18",
-  "version": "0.2.3",
-  "environment": "Node.js simulated core/UI state, full nested/flat YAML, persistence and DOM fixture",
-  "liveSillyTavern": false,
-  "liveModel": false,
+  "version": "0.2.4",
+  "testedAt": "2026-10-20T07:52:13.061Z",
   "total": 53,
   "passed": 53,
   "results": [
