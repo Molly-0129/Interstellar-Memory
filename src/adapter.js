@@ -1,6 +1,29 @@
 import { KEY, clone, digest, projection, tag, uuid } from './model.js';
 
-// Internal endpoints are isolated here and checked against upstream release 1.19.0.
+// Internal endpoints are isolated here; supported contracts are recorded in docs/compatibility.md.
+export function generationStateFrom(core) {
+    if (typeof core.isGenerating === 'function') return () => !!core.isGenerating();
+    // 1.14 exports a live flag instead of the later isGenerating helper.
+    // Read it on every call; copying its initial value would leave stale state.
+    if (typeof core.is_send_press === 'boolean') return () => core.is_send_press;
+    return undefined;
+}
+
+export function compatibilityIssues(context, libs) {
+    const missing = ['generateRaw', 'getTokenCountAsync', 'saveChat', 'getRequestHeaders',
+        'Popup', 'printMessages', 'openCharacterChat'].filter(key => typeof context[key] !== 'function');
+    if (context.POPUP_TYPE?.DISPLAY === undefined) missing.push('POPUP_TYPE.DISPLAY');
+    if (typeof context.Popup?.show?.confirm !== 'function') missing.push('Popup.show.confirm');
+    for (const key of ['on', 'emit', 'removeListener']) {
+        if (typeof context.eventSource?.[key] !== 'function') missing.push('eventSource.' + key);
+    }
+    for (const key of ['APP_READY', 'CHAT_CHANGED', 'MESSAGE_SENT', 'MESSAGE_RECEIVED',
+        'MESSAGE_EDITED', 'MESSAGE_DELETED', 'MESSAGE_SWIPED', 'GENERATION_ENDED', 'GENERATION_STOPPED']) {
+        if (!context.eventTypes?.[key]) missing.push('eventTypes.' + key);
+    }
+    if (typeof libs?.yaml?.parseDocument !== 'function') missing.push('yaml.parseDocument');
+    return missing;
+}
 export class TavernAdapter {
     constructor(getContext = () => globalThis.SillyTavern.getContext(), fetcher = (...args) => fetch(...args)) {
         this.getContext = getContext;
@@ -26,7 +49,7 @@ export class TavernAdapter {
         // Load it lazily so the adapter remains testable outside the browser.
         try {
             const core = await import('/script.js');
-            if (typeof core.isGenerating === 'function') this.nativeIsGenerating = core.isGenerating;
+            this.nativeIsGenerating = generationStateFrom(core);
         } catch { /* Older forks fall back to their actual UI/stream state. */ }
     }
     activeStream() {
@@ -114,7 +137,7 @@ export class TavernAdapter {
     }
     async refresh() {
         const c = this.context();
-        if (typeof c.clearChat === 'function' && typeof c.printMessages === 'function') {
+        if (typeof c.printMessages === 'function') {
             // clearChat also clears other extensions' prompts; only rebuild visible messages.
             globalThis.document?.querySelectorAll('#chat > .mes, #chat > #show_more_messages').forEach(node => node.remove());
             await c.printMessages();

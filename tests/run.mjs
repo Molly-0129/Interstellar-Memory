@@ -5,7 +5,7 @@ import { KEY, clone, blankState, ensureIds, tag, isStory, memoryOf, hiddenPlan, 
 import { parseResult } from '../src/schema.js';
 import { buildRequest, ORDINARY_PROMPT, ARCHIVE_PROMPT } from '../src/prompts.js';
 import { MemoryEngine } from '../src/engine.js';
-import { TavernAdapter } from '../src/adapter.js';
+import { TavernAdapter, generationStateFrom, compatibilityIssues } from '../src/adapter.js';
 
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
@@ -392,6 +392,69 @@ test('失败响应原文保留在恢复记录，不隐藏来源',async()=>{
     const engine=new MemoryEngine(adapter);await assert.rejects(engine.run(),/YAML/);
     assert.equal(engine.state().pending.responseRaw,raw);assert.equal(adapter.c.chat.some(m=>m.is_system),false);
 });
+
+test('1.14 实时生成标志在运行与结束后均立即更新',()=>{
+    const core={is_send_press:false};const read=generationStateFrom(core);
+    assert.equal(read(),false);core.is_send_press=true;assert.equal(read(),true);
+    core.is_send_press=false;assert.equal(read(),false);
+});
+test('新版优先使用核心 isGenerating，未知核心保留 UI 回退',()=>{
+    let busy=false;const read=generationStateFrom({is_send_press:true,isGenerating:()=>busy});
+    assert.equal(read(),false);busy=true;assert.equal(read(),true);
+    assert.equal(generationStateFrom({}),undefined);
+});
+test('启动检测准确报告缺失功能而不是只判断版本号',()=>{
+    const issues=compatibilityIssues({},{});
+    assert.ok(issues.includes('saveChat'));assert.ok(issues.includes('yaml.parseDocument'));
+    assert.ok(issues.includes('eventTypes.GENERATION_STOPPED'));
+});
+for (const version of ['1.14.0','1.15.0','1.16.0','1.17.0','1.18.0','1.19.0']) {
+    test(version+' 官方源码具备扩展需要的接口、事件及隐藏语义',async()=>{
+        const matrix=JSON.parse(await fs.readFile(new URL('../docs/compatibility-matrix.json',import.meta.url),'utf8'));
+        const contract=matrix.versions.find(v=>v.version===version);assert.ok(contract);
+        for(const [name,present] of Object.entries({...contract.contextFields,...contract.events})) assert.equal(present,true,name);
+        assert.equal(contract.messageArrayPrompt,true);assert.equal(contract.yaml,true);assert.equal(contract.hiddenFilter,true);
+    });
+}
+for (const version of ['1.14.0','1.18.0','1.19.0']) {
+    test(version+' 适配器模拟完成检查点、读回、普通总结、延迟隐藏和分卷',async()=>{
+        const oldDocument=globalThis.document,oldTavern=globalThis.SillyTavern;
+        globalThis.document={body:{dataset:{}},getElementById:()=>null,querySelectorAll:()=>[]};
+        globalThis.SillyTavern={libs:{yaml:YAML}};
+        try {
+            const store=new Map();let renders=0;const sent=[];
+            const eventTypes=Object.fromEntries(['APP_READY','CHAT_CHANGED','MESSAGE_SENT','MESSAGE_RECEIVED','MESSAGE_EDITED',
+                'MESSAGE_DELETED','MESSAGE_SWIPED','GENERATION_ENDED','GENERATION_STOPPED'].map(key=>[key,key]));
+            const c={chat:Array.from({length:8},(_,i)=>story(i)),chatMetadata:{},chatId:'one',characterId:0,
+                characters:[{name:'AI',avatar:'ai.png'}],mainApi:'openai',chatCompletionSettings:{openai_max_context:1000000},
+                getRequestHeaders:()=>({}),getTokenCountAsync:async text=>Math.ceil(text.length/4),
+                saveChat:async()=>{store.set(c.chatId,[{chat_metadata:clone(c.chatMetadata)},...clone(c.chat)]);},
+                printMessages:async()=>{renders++;},openCharacterChat:async()=>{},
+                eventTypes,eventSource:{on(){},emit(){},removeListener(){}},
+                Popup:class{static show={confirm:async()=>true};},POPUP_TYPE:{DISPLAY:1},
+                generateRaw:async args=>{sent.push(args);return args.systemPrompt===ARCHIVE_PROMPT?encode(archive(),'archive'):encode(ordinary());}};
+            assert.deepEqual(compatibilityIssues(c,{yaml:YAML}),[]);
+            const adapter=new TavernAdapter(()=>c,async(endpoint,args)=>{
+                const body=JSON.parse(args.body);assert.equal(body.avatar_url,'ai.png');
+                if(endpoint==='/api/chats/save') {store.set(body.file_name,clone(body.chat));return{ok:true,json:async()=>version==='1.14.0'?{result:'ok'}:{ok:true}};}
+                assert.equal(endpoint,'/api/chats/get');return{ok:true,json:async()=>clone(store.get(body.file_name))};
+            });
+            const core=version==='1.14.0'?{is_send_press:false}:{isGenerating:()=>false};
+            adapter.nativeIsGenerating=generationStateFrom(core);
+            const engine=new MemoryEngine(adapter);await engine.run();
+            assert.equal(engine.state().revision,1);assert.equal(c.chat.filter(isStory).length,4);
+            assert.equal(c.chat.at(-1).mes,encode(ordinary()));assert.ok(store.size>=2);
+            assert.equal(sent[0].responseLength,65000);assert.equal(sent[0].systemPrompt,ORDINARY_PROMPT);
+            c.chat.push(...[8,9,10,11].map(i=>story(i)));await engine.tick();
+            assert.ok(c.chat.slice(0,8).every(m=>m.is_system));
+            const previous=c.chat.find(m=>tag(m)?.kind==='summary');assert.equal(previous.is_system,false);
+            engine.state().settings.archiveTokens=1;await engine.run('archive');
+            assert.equal(previous.is_system,true);assert.equal(c.chat.at(-1).mes,encode(archive(),'archive'));
+            assert.equal(c.chat.at(-1).is_system,false);assert.ok(renders>=3);
+            assert.ok(store.get('one').at(-1).mes.includes('<星间卷宗>'));
+        } finally {globalThis.document=oldDocument;globalThis.SillyTavern=oldTavern;}
+    });
+}
 
 export async function runTests() {
     const results=[];

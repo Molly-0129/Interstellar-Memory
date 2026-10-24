@@ -37,3 +37,27 @@
 ## 0.2.1 生成状态修复
 
 上游 Generate 会在 dryRun=true 时以及命令提前中止前发出 GENERATION_STARTED，不能将该事件直接锁存为忙碌。改为延迟读取 /script.js 导出的 isGenerating，并结合实际 UI 标志与 StreamingProcessor.isFinished/isStopped。
+
+## 0.2.6：官方 1.14–1.19 兼容核验（2026-10-24）
+
+最低版本为 1.14.0。按官方发布标签核对，不通过版本号猜测接口存在。详细源码契约、提交与链接见 [核验矩阵](compatibility-matrix.json)。
+
+| 版本 | 核心生成状态 | 验证范围 |
+| --- | --- | --- |
+| 1.14.0 | 读取 live binding is_send_press | 上下文、事件、YAML、模型参数、UI 容器、弹窗、隐藏过滤、检查点端点；适配器模拟流程 |
+| 1.15.0–1.17.0 | isGenerating | 上下文、事件、YAML、模型参数、隐藏过滤源码契约 |
+| 1.18.0、1.19.0 | isGenerating | 同 1.14 核验范围；适配器模拟流程 |
+
+这些版本均提供 generateRaw 的对象参数与消息数组输入、getTokenCountAsync、Popup、saveChat、printMessages、openCharacterChat 及 SillyTavern.libs.yaml。1.14 的 YAML 依赖为 2.8.1；1.18、1.19 为 2.8.3，使用的 parseDocument/strict/uniqueKeys/maxAliasCount 接口兼容。
+
+1.14 的 /api/chats/save 成功响应为 {result: "ok"}，较新版本为 {ok: true}。插件不依赖成功响应体判定持久化完成，始终通过 /api/chats/get 读回核对元数据、正文与隐藏标志。所有版本继续保留完整原始聊天。
+
+验证边界：65 项自动化检查通过；按三个目标版本契约模拟运行真实适配器和记忆引擎，涵盖请求、检查点、读回、普通总结、四层过渡、分卷及已有失败恢复回归。没有在完整 1.14/1.18 酒馆安装中连接真实供应商实测；手机封装版、第三方分支及其主题仍需实际检查。
+
+### 版本固定的官方来源
+
+- [1.14 上下文接口](https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/scripts/st-context.js)
+- [1.14 核心生成与状态](https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/script.js)
+- [1.14 保存端点](https://github.com/SillyTavern/SillyTavern/blob/1.14.0/src/endpoints/chats.js)
+- [1.18 上下文接口](https://github.com/SillyTavern/SillyTavern/blob/1.18.0/public/scripts/st-context.js)
+- [1.18 保存端点](https://github.com/SillyTavern/SillyTavern/blob/1.18.0/src/endpoints/chats.js)

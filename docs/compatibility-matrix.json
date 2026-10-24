@@ -1,0 +1,234 @@
+{
+  "checkedAt": "2026-10-24",
+  "method": "官方版本标签源码契约检查；不是完整酒馆实机测试",
+  "versions": [
+    {
+      "version": "1.14.0",
+      "commit": "9c9be90821ffd6132b40b5f04982522a61d7ad30",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "is_send_press",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": true,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/scripts/events.js"
+      ]
+    },
+    {
+      "version": "1.15.0",
+      "commit": "1c0e7ea9556afcc3ae55c888287dff67a6aa42fc",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "isGenerating",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": null,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.15.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.15.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.15.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.15.0/public/scripts/events.js"
+      ]
+    },
+    {
+      "version": "1.16.0",
+      "commit": "e3b866b5d2bcc7fbaa889bb926fbb567cd1ed25b",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "isGenerating",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": null,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.16.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.16.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.16.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.16.0/public/scripts/events.js"
+      ]
+    },
+    {
+      "version": "1.17.0",
+      "commit": "e3f41666c69db032e17e079fcddcf40cf47e8593",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "isGenerating",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": null,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.17.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.17.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.17.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.17.0/public/scripts/events.js"
+      ]
+    },
+    {
+      "version": "1.18.0",
+      "commit": "51ad27fb86d39a3daca3adaa970375c9670c12df",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "isGenerating",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": true,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.18.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.18.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.18.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.18.0/public/scripts/events.js"
+      ]
+    },
+    {
+      "version": "1.19.0",
+      "commit": "7e8663cd9c184a550b37238218bdd32c6efc68e9",
+      "contextFields": {
+        "generateRaw": true,
+        "getTokenCountAsync": true,
+        "saveChat": true,
+        "getRequestHeaders": true,
+        "Popup": true,
+        "printMessages": true,
+        "openCharacterChat": true,
+        "POPUP_TYPE": true,
+        "eventSource": true,
+        "eventTypes": true
+      },
+      "events": {
+        "APP_READY": true,
+        "CHAT_CHANGED": true,
+        "MESSAGE_SENT": true,
+        "MESSAGE_RECEIVED": true,
+        "MESSAGE_EDITED": true,
+        "MESSAGE_DELETED": true,
+        "MESSAGE_SWIPED": true,
+        "GENERATION_ENDED": true,
+        "GENERATION_STOPPED": true
+      },
+      "generationState": "isGenerating",
+      "messageArrayPrompt": true,
+      "yaml": true,
+      "hiddenFilter": true,
+      "checkpointEndpoints": true,
+      "sourceUrls": [
+        "https://github.com/SillyTavern/SillyTavern/blob/1.19.0/public/scripts/st-context.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.19.0/public/script.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.19.0/public/lib.js",
+        "https://github.com/SillyTavern/SillyTavern/blob/1.19.0/public/scripts/events.js"
+      ]
+    }
+  ]
+}

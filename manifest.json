@@ -4,8 +4,8 @@
   "js": "index.js",
   "css": "style.css",
   "author": "Molly-0129",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "homePage": "https://github.com/Molly-0129/Interstellar-Memory",
-  "minimum_client_version": "1.19.0",
+  "minimum_client_version": "1.14.0",
   "auto_update": false
 }

@@ -1,4 +1,4 @@
-import { TavernAdapter } from './src/adapter.js';
+import { TavernAdapter, compatibilityIssues } from './src/adapter.js';
 import { MemoryEngine } from './src/engine.js';
 import { MemoryUI } from './src/ui.js';
 
@@ -26,10 +26,11 @@ function bind(name, action) {
 async function initialize() {
     if (initialized || initializing) return;
     const c = adapter.context();
-    for (const key of ['generateRaw', 'getTokenCountAsync', 'saveChat', 'getRequestHeaders', 'Popup']) {
-        if (!c[key]) { adapter.notify('当前酒馆缺少接口 ' + key + '，需要 SillyTavern 1.19.0 或兼容版本。', true); return; }
+    const missing = compatibilityIssues(c, globalThis.SillyTavern?.libs);
+    if (missing.length) {
+        adapter.notify('当前酒馆缺少必要接口：' + missing.join('、') + '。星间记忆支持官方 SillyTavern 1.14.0 及以上版本；请检查版本或分支。', true);
+        return;
     }
-    if (!globalThis.SillyTavern.libs?.yaml?.parseDocument) { adapter.notify('当前酒馆缺少 YAML 解析库，请更新酒馆。', true); return; }
     initializing = true;
     await adapter.connectNativeGenerationState();
     initialized = true;
@@ -55,7 +56,7 @@ async function initialize() {
 }
 if (globalThis.SillyTavern?.getContext) {
     const c = adapter.context();
-    c.eventSource.on(c.eventTypes.APP_READY, initialize);
+    if (c.eventSource?.on && c.eventTypes?.APP_READY) c.eventSource.on(c.eventTypes.APP_READY, initialize);
     // Also support loading the extension after APP_READY.
     if (document.readyState === 'complete') initialize();
     else globalThis.addEventListener('load', initialize, { once: true });
